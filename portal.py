@@ -11,7 +11,7 @@ import bcrypt
 # PAGE CONFIGURATION
 # ============================================================
 st.set_page_config(
-    page_title="School AIS Portal",
+    page_title="Nyamauru High School Portal",
     page_icon="SA",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -20,7 +20,7 @@ st.set_page_config(
 # ============================================================
 # BRANDING
 # ============================================================
-SCHOOL_NAME = "School AIS"
+SCHOOL_NAME = "Nyamauru High School"
 SCHOOL_LOGO_URL = "https://raw.githubusercontent.com/MisheckMusiteyi/School-AIS/main/school_logo_enhanced_white_bg.png"
 # NOTE: SHEET_NAME must match the exact filename of your Google Sheet
 # document. If you ever rename the Sheet itself, update this to match.
@@ -297,7 +297,7 @@ def inject_css():
             border-radius: 8px;
         }}
         .top-banner h1 {{
-            color: {WHITE} !important;
+            color: #000000 !important;
             margin: 0;
             font-size: 28px;
         }}
