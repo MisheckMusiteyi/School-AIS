@@ -856,6 +856,7 @@ ANNUAL_FEE_BY_LEVEL = {
 #   "Loans"            -> Loan Type | Lender | Principal Amount | Interest Rate (%) | Start Date
 #   "Creditors"        -> Description | Amount | Date
 #   "Equity"           -> Item | Amount | Date
+#   "Opening Balance"  -> Date | Amount
 #
 # Financial-year handling, spelled out:
 #   - Expenses / Other Income: the year is simply the calendar year of
@@ -1257,6 +1258,122 @@ def df_to_excel_download(df, sheet_label):
     return buffer.getvalue()
 
 
+# ============================================================
+# BANK STATEMENT
+# ============================================================
+# Presents every cash-affecting transaction (Fee Payments and Other
+# Income as credits; Expenses as debits) as a single running ledger,
+# styled like a real bank statement. Needs one more Google Sheet tab:
+#
+#   "Opening Balance" -> Date | Amount
+#
+# Add-only, like the other registers — the LATEST row is what governs
+# (re-submit the form to correct it). Transactions dated before the
+# Opening Balance's date are excluded from the ledger, on the
+# assumption they're already folded into that opening figure.
+BANK_NAME = "NMB Bank Limited"
+BANK_ACCOUNT_NUMBER = "Update BANK_ACCOUNT_NUMBER in the code"
+BANK_ACCOUNT_TYPE = "Update BANK_ACCOUNT_TYPE in the code"
+
+
+def get_opening_balance():
+    """Returns (amount, date) from the latest row in the Opening
+    Balance register, or (0.0, None) if it hasn't been set yet."""
+    df = load_data("Opening Balance")
+    if df.empty or "Date" not in df.columns or "Amount" not in df.columns:
+        return 0.0, None
+    last_row = df.iloc[-1]
+    amount = pd.to_numeric(last_row.get("Amount", 0), errors="coerce") or 0.0
+    try:
+        parsed_date = pd.to_datetime(last_row.get("Date")).date()
+    except Exception:
+        parsed_date = None
+    return amount, parsed_date
+
+
+def compute_bank_statement(start_date=None, end_date=None):
+    """
+    Combines Fee Payments + Other Income (credits) and Expenses (debits)
+    into one chronological ledger with a running balance, starting from
+    the Opening Balance register. start_date/end_date optionally narrow
+    the ledger further (on top of the opening-balance date cutoff).
+    Returns (DataFrame, opening_amount, opening_date).
+    """
+    opening_amount, opening_date = get_opening_balance()
+
+    rows = []
+    df_fees = load_data("Fee Payments")
+    if not df_fees.empty:
+        df_fees.columns = df_fees.columns.astype(str).str.strip()
+        for _, r in df_fees.iterrows():
+            rows.append({
+                "Date": r.get("Date", ""),
+                "Narration": f"Fee payment - {r.get('Student Name', '')}".strip(),
+                "Ref No.": str(r.get("Student Number", "")).strip(),
+                "Debit": 0.0,
+                "Credit": pd.to_numeric(r.get("Amount Paid", 0), errors="coerce") or 0.0,
+            })
+
+    df_other = load_data("Other Income")
+    if not df_other.empty:
+        df_other.columns = df_other.columns.astype(str).str.strip()
+        for _, r in df_other.iterrows():
+            desc = str(r.get("Income Description", "")).strip()
+            rows.append({
+                "Date": r.get("Date", ""),
+                "Narration": desc if desc else "Other income",
+                "Ref No.": "",
+                "Debit": 0.0,
+                "Credit": pd.to_numeric(r.get("Amount", 0), errors="coerce") or 0.0,
+            })
+
+    df_exp = load_data("Expenses")
+    if not df_exp.empty:
+        df_exp.columns = df_exp.columns.astype(str).str.strip()
+        for _, r in df_exp.iterrows():
+            desc = str(r.get("Description", "")).strip()
+            cat = str(r.get("Category", "")).strip()
+            narration = f"{desc} ({cat})" if desc and cat else (desc or cat or "Expense")
+            rows.append({
+                "Date": r.get("Date", ""),
+                "Narration": narration,
+                "Ref No.": "",
+                "Debit": pd.to_numeric(r.get("Amount", 0), errors="coerce") or 0.0,
+                "Credit": 0.0,
+            })
+
+    empty_cols = ["Date", "Narration", "Ref No.", "Debit", "Credit", "Balance"]
+    if not rows:
+        return pd.DataFrame(columns=empty_cols), opening_amount, opening_date
+
+    df = pd.DataFrame(rows)
+    df["_date_parsed"] = pd.to_datetime(df["Date"], errors="coerce")
+    df = df.dropna(subset=["_date_parsed"])
+
+    if opening_date:
+        df = df[df["_date_parsed"].dt.date >= opening_date]
+    if start_date:
+        df = df[df["_date_parsed"].dt.date >= start_date]
+    if end_date:
+        df = df[df["_date_parsed"].dt.date <= end_date]
+
+    if df.empty:
+        return pd.DataFrame(columns=empty_cols), opening_amount, opening_date
+
+    df = df.sort_values("_date_parsed", kind="stable").reset_index(drop=True)
+    df["Ref No."] = [rn if str(rn).strip() else f"{i + 1:05d}" for i, rn in enumerate(df["Ref No."])]
+
+    balance = opening_amount
+    balances = []
+    for _, r in df.iterrows():
+        balance += r["Credit"] - r["Debit"]
+        balances.append(balance)
+    df["Balance"] = balances
+    df["Date"] = df["_date_parsed"].dt.strftime("%Y-%m-%d")
+
+    return df[empty_cols], opening_amount, opening_date
+
+
 def hash_password(plain_password):
     """One-way hash for storage. There is no function to reverse this —
     verification only ever checks 'does this input match', it never
@@ -1402,6 +1519,7 @@ def admin_dashboard():
             "Loans Register",
             "Creditors Register",
             "Equity Register",
+            "Bank Statement",
             "Income Statement",
             "Balance Sheet",
             "Account Settings",
@@ -1444,6 +1562,8 @@ def admin_dashboard():
         admin_creditors_register()
     elif page == "Equity Register":
         admin_equity_register()
+    elif page == "Bank Statement":
+        admin_bank_statement_page()
     elif page == "Income Statement":
         admin_income_statement_page()
     elif page == "Balance Sheet":
@@ -1464,11 +1584,6 @@ def admin_overview():
 
     df_students = load_data("Students")
     total_students = len(df_students) if not df_students.empty else 0
-    level_count = "N/A"
-    if not df_students.empty:
-        df_students.columns = df_students.columns.astype(str).str.strip()
-        if "Level" in df_students.columns:
-            level_count = str(df_students["Level"].nunique())
 
     stmt = compute_income_statement(selected_year)
     debtors = compute_total_debtors()
@@ -1477,11 +1592,10 @@ def admin_overview():
 
     st.markdown(f"""
     <div class="dash-card">
-        <div class="dash-card-header">Students<span class="lifetime-badge">ALL TIME</span></div>
+        <div class="dash-card-header">Enrollment<span class="lifetime-badge">ALL TIME</span></div>
         <div class="dash-card-body">
-            <div class="metric-grid metric-grid-4">
-                <div class="metric-card"><div class="metric-value">{total_students}</div><div class="metric-label">Total Students</div></div>
-                <div class="metric-card"><div class="metric-value">{level_count}</div><div class="metric-label">Levels</div></div>
+            <div class="metric-grid metric-grid-3">
+                <div class="metric-card"><div class="metric-value">{total_students}</div><div class="metric-label">Enrollment</div></div>
                 <div class="metric-card"><div class="metric-value">${debtors:,.0f}</div><div class="metric-label">Fees Owing (Debtors)</div></div>
                 <div class="metric-card"><div class="metric-value">${deferred:,.0f}</div><div class="metric-label">Prepaid Fees (Deferred Income)</div></div>
             </div>
@@ -2021,70 +2135,174 @@ def admin_equity_register():
         st.markdown('</div></div>', unsafe_allow_html=True)
 
 
+def admin_bank_statement_page():
+    st.markdown("## Bank Statement")
+    st.caption("Every cash transaction — fees received, other income, and expenses paid — as a single running ledger.")
+
+    with st.expander("Set / update opening balance"):
+        current_amount, current_date = get_opening_balance()
+        if current_date:
+            st.caption(f"Currently set: ${current_amount:,.2f} as at {current_date.strftime('%d %B %Y')}")
+        else:
+            st.caption("Not set yet — the ledger below will start from $0.00 until you set one.")
+        col1, col2 = st.columns(2)
+        with col1:
+            ob_date = st.date_input("Opening Balance Date", value=current_date or date.today(), key="ob_date")
+        with col2:
+            ob_amount = st.number_input("Opening Balance Amount ($)", value=float(current_amount), step=10.0, key="ob_amount")
+        if st.button("Save Opening Balance", use_container_width=True):
+            success = write_data("Opening Balance", {"Date": str(ob_date), "Amount": ob_amount})
+            if success:
+                st.success("Opening balance saved.")
+                st.rerun()
+            else:
+                st.error("Failed to save — check the 'Opening Balance' tab exists with the right headers.")
+
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col1:
+        filter_from = st.date_input("From", value=None, key="stmt_from")
+    with col2:
+        filter_to = st.date_input("To", value=None, key="stmt_to")
+
+    df_stmt, opening_amount, opening_date = compute_bank_statement(
+        start_date=filter_from if filter_from else None,
+        end_date=filter_to if filter_to else None,
+    )
+
+    closing_balance = df_stmt["Balance"].iloc[-1] if not df_stmt.empty else opening_amount
+    statement_start = filter_from or opening_date or date.today()
+
+    st.markdown(f"""
+    <div style="border:1px solid {CARD_BORDER}; border-radius:10px; padding:24px 28px; margin-bottom:20px; background:{WHITE};">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap;">
+            <div>
+                <div style="font-size:22px; font-weight:700; color:{TEXT_DARK};">STATEMENT OF ACCOUNT</div>
+                <div style="font-size:13px; color:{SKY_BLUE}; margin-top:4px;">{BANK_NAME}</div>
+            </div>
+            <div style="text-align:right; font-size:13px; color:{TEXT_DARK};">
+                <div><strong>STATEMENT DATE</strong> &nbsp; {date.today().strftime('%B %d, %Y')}</div>
+                <div><strong>ACCOUNT NO</strong> &nbsp; {BANK_ACCOUNT_NUMBER}</div>
+                <div><strong>ACCOUNT TYPE</strong> &nbsp; {BANK_ACCOUNT_TYPE}</div>
+            </div>
+        </div>
+        <hr style="border-color:{CARD_BORDER}; margin:16px 0;">
+        <div style="font-size:14px; color:{TEXT_DARK};">
+            <strong>{SCHOOL_NAME}</strong><br>
+            Statement period from {statement_start.strftime('%d %B %Y') if hasattr(statement_start, 'strftime') else statement_start}
+            &nbsp;|&nbsp; Opening balance: ${opening_amount:,.2f}
+            &nbsp;|&nbsp; Closing balance: ${closing_balance:,.2f}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if df_stmt.empty:
+        st.info("No transactions in this period yet.")
+        return
+
+    html = '<table style="width:100%; border-collapse:collapse; font-size:13px;">'
+    html += f'<tr style="background-color:{PRIMARY}; color:{WHITE};">'
+    for col in ["Date", "Narration", "Ref No.", "Debit", "Credit", "Balance"]:
+        html += f'<th style="padding:10px 12px; text-align:left;">{col.upper()}</th>'
+    html += '</tr>'
+    for i, (_, row) in enumerate(df_stmt.iterrows()):
+        bg = FAINT_BLUE if i % 2 == 0 else WHITE
+        debit_str = f"{row['Debit']:,.2f}" if row["Debit"] else ""
+        credit_str = f"{row['Credit']:,.2f}" if row["Credit"] else ""
+        html += f'<tr style="background-color:{bg};">'
+        html += f'<td style="padding:8px 12px; color:{TEXT_DARK};">{row["Date"]}</td>'
+        html += f'<td style="padding:8px 12px; color:{TEXT_DARK};">{row["Narration"]}</td>'
+        html += f'<td style="padding:8px 12px; color:{TEXT_DARK};">{row["Ref No."]}</td>'
+        html += f'<td style="padding:8px 12px; color:{RED};">{debit_str}</td>'
+        html += f'<td style="padding:8px 12px; color:{GREEN};">{credit_str}</td>'
+        html += f'<td style="padding:8px 12px; color:{TEXT_DARK}; font-weight:bold;">{row["Balance"]:,.2f}</td>'
+        html += '</tr>'
+    html += '</table>'
+    st.markdown(html, unsafe_allow_html=True)
+
+    header_rows = [
+        {"Date": "", "Narration": "STATEMENT OF ACCOUNT", "Ref No.": "", "Debit": "", "Credit": "", "Balance": ""},
+        {"Date": "", "Narration": BANK_NAME, "Ref No.": "", "Debit": "", "Credit": "", "Balance": ""},
+        {"Date": "", "Narration": SCHOOL_NAME, "Ref No.": "", "Debit": "", "Credit": "", "Balance": ""},
+        {"Date": "", "Narration": f"Statement date: {date.today().strftime('%B %d, %Y')}", "Ref No.": "", "Debit": "", "Credit": "", "Balance": ""},
+        {"Date": "", "Narration": "", "Ref No.": "", "Debit": "", "Credit": "", "Balance": ""},
+    ]
+    df_export = pd.concat([pd.DataFrame(header_rows), df_stmt], ignore_index=True)
+    st.download_button(
+        "Download as Excel",
+        data=df_to_excel_download(df_export, "Bank Statement"),
+        file_name=f"{SCHOOL_NAME.replace(' ', '_')}_Bank_Statement_{date.today().isoformat()}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True,
+    )
+
+
 def admin_income_statement_page():
-    st.markdown("## Income Statement")
-    st.caption("Statement of Comprehensive Income for one financial year.")
+    st.markdown("## Statement of Comprehensive Income (SOCI)")
 
     years = get_financial_years()
     selected_year = st.selectbox("Financial Year", years, key="is_year")
+    st.caption(f"For the year ended 31 December {selected_year}")
     stmt = compute_income_statement(selected_year)
 
-    lines = [
+    revenue_lines = [
         ("Fee income", f"${stmt['fee_income']:,.2f}"),
         ("Other income", f"${stmt['other_income']:,.2f}"),
         ("Total revenue", f"${stmt['total_revenue']:,.2f}"),
-        ("Staff costs", f"(${stmt['staff_costs']:,.2f})"),
     ]
+
+    expense_lines = [("Staff costs", f"(${stmt['staff_costs']:,.2f})")]
     for cat, label in EXPENSE_LINE_LABELS.items():
-        lines.append((label, f"(${stmt['expense_lines'][cat]:,.2f})"))
-    lines += [
+        expense_lines.append((label, f"(${stmt['expense_lines'][cat]:,.2f})"))
+    expense_lines += [
         ("Depreciation", f"(${stmt['depreciation']:,.2f})"),
         ("Total operating expenses", f"(${stmt['total_opex']:,.2f})"),
-        ("Operating surplus", f"${stmt['operating_surplus']:,.2f}"),
-        ("Finance costs", f"(${stmt['finance_costs']:,.2f})"),
-        ("Surplus before tax", f"${stmt['surplus_before_tax']:,.2f}"),
-        (f"Income tax expense ({CORPORATE_TAX_RATE*100:.0f}%)", f"(${stmt['tax_expense']:,.2f})"),
-        ("Surplus for the year", f"${stmt['surplus_for_year']:,.2f}"),
     ]
 
-    st.markdown('<div class="dash-card"><div class="dash-card-header">Statement of Comprehensive Income</div><div class="dash-card-body">', unsafe_allow_html=True)
-    render_kv_table(lines)
+    result_lines = [
+        ("Operating surplus/(deficit)", f"${stmt['operating_surplus']:,.2f}"),
+        ("Finance costs", f"(${stmt['finance_costs']:,.2f})"),
+        ("Surplus/(deficit) before tax", f"${stmt['surplus_before_tax']:,.2f}"),
+        (f"Income tax expense ({CORPORATE_TAX_RATE*100:.0f}%)", f"(${stmt['tax_expense']:,.2f})"),
+        ("SURPLUS/(DEFICIT) FOR THE YEAR", f"${stmt['surplus_for_year']:,.2f}"),
+    ]
+
+    st.markdown('<div class="dash-card"><div class="dash-card-header">Revenue</div><div class="dash-card-body">', unsafe_allow_html=True)
+    render_kv_table(revenue_lines)
     st.markdown('</div></div>', unsafe_allow_html=True)
 
-    export_rows = [{"Line Item": l, "Amount": v} for l, v in lines]
+    st.markdown('<div class="dash-card"><div class="dash-card-header">Operating Expenses</div><div class="dash-card-body">', unsafe_allow_html=True)
+    render_kv_table(expense_lines)
+    st.markdown('</div></div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="dash-card"><div class="dash-card-header">Result for the Year</div><div class="dash-card-body">', unsafe_allow_html=True)
+    render_kv_table(result_lines)
+    st.markdown('</div></div>', unsafe_allow_html=True)
+
+    all_lines = revenue_lines + expense_lines + result_lines
+    export_rows = [{"Line Item": l, "Amount": v} for l, v in all_lines]
     df_export = pd.DataFrame(export_rows)
     st.download_button(
         "Download as Excel",
-        data=df_to_excel_download(df_export, "Income Statement"),
-        file_name=f"{SCHOOL_NAME.replace(' ', '_')}_Income_Statement_{selected_year}.xlsx",
+        data=df_to_excel_download(df_export, "SOCI"),
+        file_name=f"{SCHOOL_NAME.replace(' ', '_')}_SOCI_{selected_year}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True,
     )
 
 
 def admin_balance_sheet_page():
-    st.markdown("## Balance Sheet")
-    st.caption(f"Statement of Financial Position as at {date.today().strftime('%d %B %Y')}.")
+    st.markdown("## Statement of Financial Position")
+    st.caption(f"As at {date.today().strftime('%d %B %Y')}")
 
     bs = compute_balance_sheet()
 
-    asset_lines = [(cat, f"${bs['nbv_by_category'][cat]:,.2f}") for cat in ASSET_CATEGORIES]
-    asset_lines.append(("Total non-current assets", f"${bs['total_non_current_assets']:,.2f}"))
-    asset_lines += [
+    non_current_asset_lines = [(cat, f"${bs['nbv_by_category'][cat]:,.2f}") for cat in ASSET_CATEGORIES]
+    non_current_asset_lines.append(("Total non-current assets", f"${bs['total_non_current_assets']:,.2f}"))
+
+    current_asset_lines = [
         ("Debtors (fees receivable)", f"${bs['debtors']:,.2f}"),
         ("Cash and cash equivalents", f"${bs['cash']:,.2f}"),
         ("Total current assets", f"${bs['total_current_assets']:,.2f}"),
-        ("TOTAL ASSETS", f"${bs['total_assets']:,.2f}"),
-    ]
-
-    liability_lines = [
-        ("Long-term loans", f"${bs['long_term_loans']:,.2f}"),
-        ("Short-term loans", f"${bs['short_term_loans']:,.2f}"),
-        ("Tax liabilities", f"${bs['current_year_tax']:,.2f}"),
-        ("Creditors", f"${bs['creditors_total']:,.2f}"),
-        ("Deferred income (prepaid fees)", f"${bs['deferred_income']:,.2f}"),
-        ("Total current liabilities", f"${bs['total_current_liabilities']:,.2f}"),
-        ("TOTAL LIABILITIES", f"${bs['total_liabilities']:,.2f}"),
     ]
 
     equity_lines = [
@@ -2092,28 +2310,59 @@ def admin_balance_sheet_page():
         ("Share premium", f"${bs['share_premium']:,.2f}"),
         ("Revaluation reserve", f"${bs['revaluation_reserve']:,.2f}"),
         ("Retained earnings", f"${bs['retained_earnings']:,.2f}"),
-        ("TOTAL EQUITY", f"${bs['total_equity']:,.2f}"),
+        ("Total equity", f"${bs['total_equity']:,.2f}"),
     ]
 
-    st.markdown('<div class="dash-card"><div class="dash-card-header">Assets</div><div class="dash-card-body">', unsafe_allow_html=True)
-    render_kv_table(asset_lines)
+    non_current_liability_lines = [
+        ("Long-term loans", f"${bs['long_term_loans']:,.2f}"),
+    ]
+
+    current_liability_lines = [
+        ("Short-term loans", f"${bs['short_term_loans']:,.2f}"),
+        ("Tax liabilities", f"${bs['current_year_tax']:,.2f}"),
+        ("Creditors", f"${bs['creditors_total']:,.2f}"),
+        ("Deferred income (prepaid fees)", f"${bs['deferred_income']:,.2f}"),
+        ("Total current liabilities", f"${bs['total_current_liabilities']:,.2f}"),
+    ]
+
+    st.markdown("### ASSETS")
+    st.markdown('<div class="dash-card"><div class="dash-card-header">Non-Current Assets</div><div class="dash-card-body">', unsafe_allow_html=True)
+    render_kv_table(non_current_asset_lines)
     st.markdown('</div></div>', unsafe_allow_html=True)
 
-    st.markdown('<div class="dash-card"><div class="dash-card-header">Liabilities</div><div class="dash-card-body">', unsafe_allow_html=True)
-    render_kv_table(liability_lines)
+    st.markdown('<div class="dash-card"><div class="dash-card-header">Current Assets</div><div class="dash-card-body">', unsafe_allow_html=True)
+    render_kv_table(current_asset_lines)
     st.markdown('</div></div>', unsafe_allow_html=True)
 
+    st.markdown(f"<p style='font-size:16px;'><strong>TOTAL ASSETS: ${bs['total_assets']:,.2f}</strong></p>", unsafe_allow_html=True)
+
+    st.markdown("### EQUITY AND LIABILITIES")
     st.markdown('<div class="dash-card"><div class="dash-card-header">Equity</div><div class="dash-card-body">', unsafe_allow_html=True)
     render_kv_table(equity_lines)
     st.markdown('</div></div>', unsafe_allow_html=True)
 
-    check_color = GREEN if abs(bs["total_assets"] - (bs["total_liabilities"] + bs["total_equity"])) < 0.01 else RED
-    st.markdown(f"<p style='color:{check_color};'><strong>Balance check:</strong> Total Assets (${bs['total_assets']:,.2f}) = Total Liabilities + Equity (${bs['total_liabilities'] + bs['total_equity']:,.2f})</p>", unsafe_allow_html=True)
+    st.markdown('<div class="dash-card"><div class="dash-card-header">Non-Current Liabilities</div><div class="dash-card-body">', unsafe_allow_html=True)
+    render_kv_table(non_current_liability_lines)
+    st.markdown('</div></div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="dash-card"><div class="dash-card-header">Current Liabilities</div><div class="dash-card-body">', unsafe_allow_html=True)
+    render_kv_table(current_liability_lines)
+    st.markdown('</div></div>', unsafe_allow_html=True)
+
+    total_equity_and_liabilities = bs["total_equity"] + bs["total_liabilities"]
+    st.markdown(f"<p style='font-size:16px;'><strong>TOTAL EQUITY AND LIABILITIES: ${total_equity_and_liabilities:,.2f}</strong></p>", unsafe_allow_html=True)
+
+    check_color = GREEN if abs(bs["total_assets"] - total_equity_and_liabilities) < 0.01 else RED
+    st.markdown(f"<p style='color:{check_color};'><strong>Balance check:</strong> Total Assets (${bs['total_assets']:,.2f}) = Total Equity and Liabilities (${total_equity_and_liabilities:,.2f})</p>", unsafe_allow_html=True)
 
     export_rows = (
-        [{"Section": "Assets", "Line Item": l, "Amount": v} for l, v in asset_lines] +
-        [{"Section": "Liabilities", "Line Item": l, "Amount": v} for l, v in liability_lines] +
-        [{"Section": "Equity", "Line Item": l, "Amount": v} for l, v in equity_lines]
+        [{"Section": "Non-Current Assets", "Line Item": l, "Amount": v} for l, v in non_current_asset_lines] +
+        [{"Section": "Current Assets", "Line Item": l, "Amount": v} for l, v in current_asset_lines] +
+        [{"Section": "TOTAL ASSETS", "Line Item": "", "Amount": f"${bs['total_assets']:,.2f}"}] +
+        [{"Section": "Equity", "Line Item": l, "Amount": v} for l, v in equity_lines] +
+        [{"Section": "Non-Current Liabilities", "Line Item": l, "Amount": v} for l, v in non_current_liability_lines] +
+        [{"Section": "Current Liabilities", "Line Item": l, "Amount": v} for l, v in current_liability_lines] +
+        [{"Section": "TOTAL EQUITY AND LIABILITIES", "Line Item": "", "Amount": f"${total_equity_and_liabilities:,.2f}"}]
     )
     df_export = pd.DataFrame(export_rows)
     st.download_button(
