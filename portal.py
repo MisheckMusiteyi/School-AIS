@@ -21,7 +21,7 @@ st.set_page_config(
 # BRANDING
 # ============================================================
 SCHOOL_NAME = "School AIS"
-SCHOOL_LOGO_URL = "https://raw.githubusercontent.com/MisheckMusiteyi/Zebra-Academy-Portal/main/Zebra%20Academy.jpg"
+SCHOOL_LOGO_URL = "https://raw.githubusercontent.com/MisheckMusiteyi/School-AIS/main/school_logo_enhanced_white_bg.png"
 # NOTE: SHEET_NAME must match the exact filename of your Google Sheet
 # document. If you ever rename the Sheet itself, update this to match.
 # NOTE: SHEET_NAME is just for display/reference — the app actually opens
@@ -31,23 +31,23 @@ SCHOOL_LOGO_URL = "https://raw.githubusercontent.com/MisheckMusiteyi/Zebra-Acade
 SHEET_NAME = "School AIS"
 SPREADSHEET_ID = "11rQPWhtGymnAjJ_xmFsHVsX1mdlli6AnSouSj5JQL3w"
 
-# Colors (from logo)
-MAROON = "#6B1F32"
-MAROON_DARK = "#5C1A29"
-MAROON_TEXT = "#1A0A0E"
+# Colors (from logo — sky blue and white)
+PRIMARY = "#0A9EE8"
+PRIMARY_DARK = "#0678B0"
+TEXT_DARK = "#0B2A3D"
 WHITE = "#FFFFFF"
-OFF_WHITE = "#FAFAFA"
-CARD_BORDER = "#E0D5D8"
-CARD_ALT_ROW = "#F8F4F5"
+OFF_WHITE = "#F7FBFE"
+CARD_BORDER = "#CFE8F7"
+CARD_ALT_ROW = "#EAF6FD"
 GREEN = "#4CAF50"
 RED = "#E74C3C"
-SKY_BLUE = "#5C1A29"
-LIGHT_GREY = "#E0D5D8"
-FAINT_MAROON = "#F5F0F2"
-HOVER_MAROON = "#EDE0E3"
+SKY_BLUE = "#4A7A99"
+LIGHT_GREY = "#CFE8F7"
+FAINT_BLUE = "#EAF6FD"
+HOVER_PRIMARY = "#DCEFFB"
 
 # ============================================================
-# CSS - ZEBRA ACADEMY MAROON THEME
+# CSS - ZEBRA ACADEMY PRIMARY THEME
 # ============================================================
 def inject_css():
     st.markdown(f"""
@@ -55,9 +55,9 @@ def inject_css():
         :root, [data-theme="light"], [data-theme="dark"] {{
             --background-color: {OFF_WHITE} !important;
             --secondary-background-color: {WHITE} !important;
-            --text-color: {MAROON_TEXT} !important;
+            --text-color: {TEXT_DARK} !important;
             --font: 'Georgia', 'Times New Roman', serif !important;
-            --primary-color: {MAROON} !important;
+            --primary-color: {PRIMARY} !important;
             color-scheme: light !important;
         }}
         
@@ -69,7 +69,7 @@ def inject_css():
         [data-testid="stApp"], [data-testid="stHeader"], [data-testid="stToolbar"],
         [data-testid="stBottomBlockContainer"] {{
             background-color: {OFF_WHITE} !important;
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         
         html, body, div, p, span, a, li, td, th, label, input, select, textarea, button {{
@@ -83,14 +83,14 @@ def inject_css():
         }}
         
         .stButton > button {{
-            background-color: {MAROON} !important;
+            background-color: {PRIMARY} !important;
             color: {WHITE} !important;
             border: none !important;
             border-radius: 6px !important;
             font-weight: bold !important;
         }}
         .stButton > button:hover {{
-            background-color: {MAROON_DARK} !important;
+            background-color: {PRIMARY_DARK} !important;
             color: {WHITE} !important;
         }}
         .stButton > button p, .stButton > button span, .stButton > button div,
@@ -100,7 +100,7 @@ def inject_css():
         }}
         
         .stTabs [aria-selected="true"] {{
-            background-color: {MAROON} !important;
+            background-color: {PRIMARY} !important;
             color: {WHITE} !important;
         }}
         .stTabs [aria-selected="true"] p, .stTabs [aria-selected="true"] span,
@@ -108,14 +108,14 @@ def inject_css():
             color: {WHITE} !important;
         }}
         .stTabs [aria-selected="false"] {{
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         .stTabs [aria-selected="false"] p, .stTabs [aria-selected="false"] span {{
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         
         section[data-testid="stSidebar"][aria-expanded="true"] {{
-            background-color: {MAROON} !important;
+            background-color: {PRIMARY} !important;
             min-width: 300px !important;
             max-width: 300px !important;
             width: 300px !important;
@@ -124,7 +124,7 @@ def inject_css():
             color: {WHITE} !important;
         }}
         [data-testid="stSidebar"] button {{
-            background-color: {MAROON_DARK} !important;
+            background-color: {PRIMARY_DARK} !important;
             border: none !important;
             border-radius: 6px !important;
             color: {WHITE} !important;
@@ -146,7 +146,7 @@ def inject_css():
             height: 0 !important;
         }}
         [data-testid*="ollapse" i] button {{
-            background-color: {MAROON} !important;
+            background-color: {PRIMARY} !important;
             border: none !important;
             border-radius: 50% !important;
             width: 30px !important;
@@ -177,17 +177,17 @@ def inject_css():
         }}
         
         h1, h2, h3, h4, h5, h6 {{
-            color: {MAROON} !important;
+            color: {PRIMARY} !important;
             font-family: 'Georgia', 'Times New Roman', serif !important;
         }}
         
         input, textarea, select {{
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
             background-color: {WHITE} !important;
             border: 1px solid {CARD_BORDER} !important;
         }}
         label, .stTextInput label, .stNumberInput label, .stSelectbox label, .stDateInput label {{
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         
         [data-testid="stDataFrame"] table,
@@ -199,17 +199,17 @@ def inject_css():
         [data-testid="stDataFrame"] th,
         .stDataFrame th,
         .dataframe th {{
-            background-color: {MAROON} !important;
+            background-color: {PRIMARY} !important;
             color: {WHITE} !important;
             padding: 12px 15px !important;
             font-weight: bold !important;
-            border-bottom: 2px solid {MAROON_DARK} !important;
+            border-bottom: 2px solid {PRIMARY_DARK} !important;
         }}
         [data-testid="stDataFrame"] td,
         .stDataFrame td,
         .dataframe td {{
             padding: 10px 15px !important;
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
             border-bottom: 1px solid {CARD_BORDER} !important;
         }}
         [data-testid="stDataFrame"] tr:nth-child(odd) td,
@@ -220,12 +220,12 @@ def inject_css():
         [data-testid="stDataFrame"] tr:nth-child(even) td,
         .stDataFrame tr:nth-child(even) td,
         .dataframe tr:nth-child(even) td {{
-            background-color: {FAINT_MAROON} !important;
+            background-color: {FAINT_BLUE} !important;
         }}
         [data-testid="stDataFrame"] tr:hover td,
         .stDataFrame tr:hover td,
         .dataframe tr:hover td {{
-            background-color: {HOVER_MAROON} !important;
+            background-color: {HOVER_PRIMARY} !important;
         }}
         
         [data-testid="stTable"] table {{
@@ -233,59 +233,59 @@ def inject_css():
             border: 1px solid {CARD_BORDER} !important;
         }}
         [data-testid="stTable"] th {{
-            background-color: {MAROON} !important;
+            background-color: {PRIMARY} !important;
             color: {WHITE} !important;
             padding: 12px 15px !important;
             font-weight: bold !important;
         }}
         [data-testid="stTable"] td {{
             padding: 10px 15px !important;
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
             border-bottom: 1px solid {CARD_BORDER} !important;
         }}
         [data-testid="stTable"] tr:nth-child(odd) td {{
             background-color: {WHITE} !important;
         }}
         [data-testid="stTable"] tr:nth-child(even) td {{
-            background-color: {FAINT_MAROON} !important;
+            background-color: {FAINT_BLUE} !important;
         }}
         [data-testid="stTable"] tr:hover td {{
-            background-color: {HOVER_MAROON} !important;
+            background-color: {HOVER_PRIMARY} !important;
         }}
         
         [data-testid="stMetricValue"] {{
-            color: {MAROON} !important;
+            color: {PRIMARY} !important;
         }}
         [data-testid="stMetricLabel"] {{
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         
         .stAlert, [data-testid="stAlert"] {{
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         .stAlert p, [data-testid="stAlert"] p {{
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         
         .stSelectbox div[data-baseweb="select"] > div {{
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
             background-color: {WHITE} !important;
         }}
         
         .stRadio label, .stRadio p, .stRadio span {{
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         
         .stCheckbox label, .stCheckbox p, .stCheckbox span {{
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         
         .streamlit-expanderHeader {{
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         
         .top-banner {{
-            background-color: {MAROON};
+            background-color: {PRIMARY};
             padding: 20px 40px;
             display: flex;
             align-items: center;
@@ -312,14 +312,14 @@ def inject_css():
             border: 1px solid {CARD_BORDER};
         }}
         .login-container h3 {{
-            color: {MAROON} !important;
+            color: {PRIMARY} !important;
         }}
         .login-container label {{
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         
         .bottom-footer {{
-            background-color: {MAROON};
+            background-color: {PRIMARY};
             color: {WHITE};
             text-align: center;
             padding: 15px;
@@ -338,7 +338,7 @@ def inject_css():
             overflow: hidden;
         }}
         .dash-card-header {{
-            background-color: {MAROON};
+            background-color: {PRIMARY};
             color: {WHITE} !important;
             padding: 14px 20px;
             font-size: 16px;
@@ -349,7 +349,7 @@ def inject_css():
         }}
         .dash-card-body p, .dash-card-body span, .dash-card-body div,
         .dash-card-body label, .dash-card-body li {{
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         
         .dash-card table {{
@@ -358,26 +358,26 @@ def inject_css():
             border: 1px solid {CARD_BORDER};
         }}
         .dash-card th {{
-            background-color: {MAROON} !important;
+            background-color: {PRIMARY} !important;
             color: {WHITE} !important;
             padding: 12px 15px;
             text-align: left;
             font-weight: bold;
-            border-bottom: 2px solid {MAROON_DARK};
+            border-bottom: 2px solid {PRIMARY_DARK};
         }}
         .dash-card td {{
             padding: 10px 15px;
             border-bottom: 1px solid {CARD_BORDER};
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         .dash-card tr:nth-child(odd) td {{
             background-color: {WHITE};
         }}
         .dash-card tr:nth-child(even) td {{
-            background-color: {FAINT_MAROON};
+            background-color: {FAINT_BLUE};
         }}
         .dash-card tr:hover td {{
-            background-color: {HOVER_MAROON} !important;
+            background-color: {HOVER_PRIMARY} !important;
         }}
         
         .dash-card-body table {{
@@ -386,7 +386,7 @@ def inject_css():
             border: 1px solid {CARD_BORDER};
         }}
         .dash-card-body table th {{
-            background-color: {MAROON} !important;
+            background-color: {PRIMARY} !important;
             color: {WHITE} !important;
             padding: 12px 15px;
             text-align: left;
@@ -395,16 +395,16 @@ def inject_css():
         .dash-card-body table td {{
             padding: 10px 15px;
             border-bottom: 1px solid {CARD_BORDER};
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         .dash-card-body table tr:nth-child(odd) td {{
             background-color: {WHITE};
         }}
         .dash-card-body table tr:nth-child(even) td {{
-            background-color: {FAINT_MAROON};
+            background-color: {FAINT_BLUE};
         }}
         .dash-card-body table tr:hover td {{
-            background-color: {HOVER_MAROON} !important;
+            background-color: {HOVER_PRIMARY} !important;
         }}
         
         .metric-card {{
@@ -417,7 +417,7 @@ def inject_css():
         .metric-value {{
             font-size: 32px;
             font-weight: bold;
-            color: {MAROON};
+            color: {PRIMARY};
         }}
         .metric-label {{
             font-size: 13px;
@@ -459,7 +459,7 @@ def inject_css():
             width: 100px;
             height: 100px;
             border-radius: 50%;
-            background-color: {MAROON};
+            background-color: {PRIMARY};
             color: {WHITE};
             display: flex;
             align-items: center;
@@ -495,7 +495,7 @@ def inject_css():
         [data-testid="stFileUploaderDropzoneInstructions"] div,
         [data-testid="stFileUploaderDropzoneInstructions"] span,
         [data-testid="stFileUploaderDropzoneInstructions"] small {{
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
             font-family: 'Georgia', 'Times New Roman', serif !important;
             display: block !important;
             position: static !important;
@@ -510,7 +510,7 @@ def inject_css():
         }}
         [data-testid="stFileUploadDropzone"] button {{
             position: static !important;
-            background-color: {MAROON} !important;
+            background-color: {PRIMARY} !important;
             color: {WHITE} !important;
             border: none !important;
             border-radius: 6px !important;
@@ -525,7 +525,7 @@ def inject_css():
         
         .lifetime-badge {{
             display: inline-block;
-            background-color: {MAROON};
+            background-color: {PRIMARY};
             color: {WHITE} !important;
             padding: 4px 12px;
             border-radius: 20px;
@@ -544,78 +544,78 @@ def inject_css():
         
         hr, .section-divider {{
             border: none;
-            border-top: 2px solid {MAROON};
+            border-top: 2px solid {PRIMARY};
             margin: 30px 0;
         }}
         
         .stMultiSelect label {{
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         .stMultiSelect div[data-baseweb="select"] > div {{
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         
         .stDateInput label {{
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         .stDateInput input {{
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         
         /* --- Widgets that pull from Streamlit's live theme color rather than
            plain CSS, and so can drift from the palette above on theme changes --- */
         
         a, a:visited {{
-            color: {MAROON} !important;
+            color: {PRIMARY} !important;
         }}
         
         [data-baseweb="tooltip"], [data-baseweb="popover"] {{
             background-color: {WHITE} !important;
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         
         /* Toggle switches */
         [data-baseweb="checkbox"] [aria-checked="true"] > div:first-child,
         [data-testid="stToggle"] [aria-checked="true"] {{
-            background-color: {MAROON} !important;
-            border-color: {MAROON} !important;
+            background-color: {PRIMARY} !important;
+            border-color: {PRIMARY} !important;
         }}
         
         /* Slider track/handle/labels */
         [data-testid="stSlider"] [role="slider"] {{
-            background-color: {MAROON} !important;
-            border-color: {MAROON} !important;
+            background-color: {PRIMARY} !important;
+            border-color: {PRIMARY} !important;
         }}
         [data-testid="stSlider"] div[data-baseweb="slider"] > div > div {{
-            background-color: {MAROON} !important;
+            background-color: {PRIMARY} !important;
         }}
         [data-testid="stTickBarMin"], [data-testid="stTickBarMax"],
         [data-testid="stSliderThumbValue"] {{
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         
         /* Progress bar */
         [data-testid="stProgress"] > div > div > div {{
-            background-color: {MAROON} !important;
+            background-color: {PRIMARY} !important;
         }}
         
         /* Spinner */
         [data-testid="stSpinner"] svg circle {{
-            stroke: {MAROON} !important;
+            stroke: {PRIMARY} !important;
         }}
         [data-testid="stSpinner"] p {{
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         
         /* Toasts / notifications */
         [data-testid="stToast"] {{
             background-color: {WHITE} !important;
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         
         /* Multiselect selected-item pills */
         [data-baseweb="tag"] {{
-            background-color: {MAROON} !important;
+            background-color: {PRIMARY} !important;
             color: {WHITE} !important;
         }}
         [data-baseweb="tag"] span {{
@@ -632,35 +632,35 @@ def inject_css():
         }}
         [data-testid="stDateInput"] input {{
             background-color: {WHITE} !important;
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         
         [data-baseweb="calendar"] {{
             background-color: {WHITE} !important;
         }}
         [data-baseweb="calendar"] * {{
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         [data-baseweb="calendar"] div {{
             background-color: {WHITE} !important;
         }}
         [data-baseweb="calendar"] button {{
             background-color: {WHITE} !important;
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         [data-baseweb="calendar"] button:hover {{
-            background-color: {HOVER_MAROON} !important;
+            background-color: {HOVER_PRIMARY} !important;
         }}
         [data-baseweb="calendar"] [aria-disabled="true"] {{
             color: {CARD_BORDER} !important;
         }}
         [data-baseweb="calendar"] [aria-selected="true"],
         [data-baseweb="calendar"] [aria-selected="true"]:hover {{
-            background-color: {MAROON} !important;
+            background-color: {PRIMARY} !important;
             color: {WHITE} !important;
         }}
         [data-baseweb="calendar"] svg {{
-            fill: {MAROON_TEXT} !important;
+            fill: {TEXT_DARK} !important;
         }}
         
         /* Same dark-render issue can hit selectbox/multiselect dropdown menus */
@@ -669,11 +669,11 @@ def inject_css():
         }}
         [data-baseweb="menu"] li, [role="option"] {{
             background-color: {WHITE} !important;
-            color: {MAROON_TEXT} !important;
+            color: {TEXT_DARK} !important;
         }}
         [role="option"]:hover, [role="option"][aria-selected="true"] {{
-            background-color: {HOVER_MAROON} !important;
-            color: {MAROON_TEXT} !important;
+            background-color: {HOVER_PRIMARY} !important;
+            color: {TEXT_DARK} !important;
         }}
     </style>
     """, unsafe_allow_html=True)
@@ -1287,13 +1287,13 @@ def is_hashed(stored_value):
 
 def render_kv_table(pairs):
     """Render a list of (label, value) pairs as a bordered table with
-    alternating faint-maroon rows."""
+    alternating faint-blue rows."""
     html = f'<table style="width:100%; border-collapse:collapse; border:1px solid {CARD_BORDER};">'
     for i, (label, value) in enumerate(pairs):
-        bg = FAINT_MAROON if i % 2 == 0 else WHITE
+        bg = FAINT_BLUE if i % 2 == 0 else WHITE
         html += f'<tr style="background-color:{bg};">'
-        html += f'<td style="padding:10px 12px; border:1px solid {CARD_BORDER}; color:{MAROON_TEXT}; width:45%;"><strong>{label}</strong></td>'
-        html += f'<td style="padding:10px 12px; border:1px solid {CARD_BORDER}; color:{MAROON_TEXT};">{value}</td>'
+        html += f'<td style="padding:10px 12px; border:1px solid {CARD_BORDER}; color:{TEXT_DARK}; width:45%;"><strong>{label}</strong></td>'
+        html += f'<td style="padding:10px 12px; border:1px solid {CARD_BORDER}; color:{TEXT_DARK};">{value}</td>'
         html += '</tr>'
     html += '</table>'
     st.markdown(html, unsafe_allow_html=True)
@@ -1497,7 +1497,7 @@ def admin_overview():
             <div class="metric-grid metric-grid-3">
                 <div class="metric-card"><div class="metric-value">${stmt['fee_income']:,.0f}</div><div class="metric-label">Fee Income</div></div>
                 <div class="metric-card"><div class="metric-value">${stmt['other_income']:,.0f}</div><div class="metric-label">Other Income</div></div>
-                <div class="metric-card"><div class="metric-value" style="color:{MAROON};">${stmt['total_revenue']:,.0f}</div><div class="metric-label">Total Revenue</div></div>
+                <div class="metric-card"><div class="metric-value" style="color:{PRIMARY};">${stmt['total_revenue']:,.0f}</div><div class="metric-label">Total Revenue</div></div>
             </div>
             <h4>Expenses</h4>
             <div class="metric-grid metric-grid-2">
@@ -1615,19 +1615,19 @@ def admin_fees_owing():
 
     st.markdown('<div class="dash-card"><div class="dash-card-header">Per-Student Breakdown</div><div class="dash-card-body">', unsafe_allow_html=True)
     html = '<table style="width:100%; border-collapse:collapse; font-size:14px;">'
-    html += f'<tr style="background-color:{MAROON}; color:{WHITE};">'
+    html += f'<tr style="background-color:{PRIMARY}; color:{WHITE};">'
     for col in ["Student Number", "Student Name", "Academic Year", "Expected", "Paid", "Owing"]:
         html += f'<th style="padding:10px 12px; text-align:left;">{col}</th>'
     html += '</tr>'
     for i, (_, row) in enumerate(df_report.iterrows()):
-        bg = FAINT_MAROON if i % 2 == 0 else WHITE
+        bg = FAINT_BLUE if i % 2 == 0 else WHITE
         owing_color = RED if row["Owing"] > 0 else GREEN
         html += '<tr>'
-        html += f'<td style="padding:10px 12px; background-color:{bg}; color:{MAROON_TEXT};">{row["Student Number"]}</td>'
-        html += f'<td style="padding:10px 12px; background-color:{bg}; color:{MAROON_TEXT};">{row["Student Name"]}</td>'
-        html += f'<td style="padding:10px 12px; background-color:{bg}; color:{MAROON_TEXT};">{row["Academic Year"]}</td>'
-        html += f'<td style="padding:10px 12px; background-color:{bg}; color:{MAROON_TEXT};">${row["Expected"]:,.2f}</td>'
-        html += f'<td style="padding:10px 12px; background-color:{bg}; color:{MAROON_TEXT};">${row["Paid"]:,.2f}</td>'
+        html += f'<td style="padding:10px 12px; background-color:{bg}; color:{TEXT_DARK};">{row["Student Number"]}</td>'
+        html += f'<td style="padding:10px 12px; background-color:{bg}; color:{TEXT_DARK};">{row["Student Name"]}</td>'
+        html += f'<td style="padding:10px 12px; background-color:{bg}; color:{TEXT_DARK};">{row["Academic Year"]}</td>'
+        html += f'<td style="padding:10px 12px; background-color:{bg}; color:{TEXT_DARK};">${row["Expected"]:,.2f}</td>'
+        html += f'<td style="padding:10px 12px; background-color:{bg}; color:{TEXT_DARK};">${row["Paid"]:,.2f}</td>'
         html += f'<td style="padding:10px 12px; background-color:{bg}; color:{owing_color}; font-weight:bold;">${row["Owing"]:,.2f}</td>'
         html += '</tr>'
     html += '</table>'
