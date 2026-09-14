@@ -284,13 +284,18 @@ def inject_css():
             color: {TEXT_DARK} !important;
         }}
         
+        .block-container {{
+            padding-top: 24px !important;
+        }}
+        
         .top-banner {{
             background-color: {PRIMARY};
             padding: 20px 40px;
             display: flex;
             align-items: center;
             gap: 20px;
-            margin: -100px -100px 30px -100px;
+            border-radius: 10px;
+            margin: 0 0 30px 0;
         }}
         .top-banner img {{
             height: 60px;
@@ -346,6 +351,24 @@ def inject_css():
         }}
         .dash-card-body {{
             padding: 20px;
+        }}
+        
+        /* Native st.container(border=True) — used for any card that holds
+           live widgets (inputs, buttons, dataframes), since wrapping those
+           in a plain HTML <div> via st.markdown doesn't actually nest them
+           in the DOM and leaves an empty box behind. This gives the real
+           Streamlit container the same rounded-card look as .dash-card. */
+        [data-testid="stVerticalBlockBorderWrapper"] {{
+            border-radius: 10px !important;
+            border-color: {CARD_BORDER} !important;
+            background: {WHITE} !important;
+        }}
+        [data-testid="stVerticalBlockBorderWrapper"] h4 {{
+            color: {PRIMARY} !important;
+            border-bottom: 2px solid {CARD_BORDER};
+            padding-bottom: 10px;
+            margin-bottom: 14px;
+            margin-top: 0;
         }}
         .dash-card-body p, .dash-card-body span, .dash-card-body div,
         .dash-card-body label, .dash-card-body li {{
@@ -1603,49 +1626,48 @@ def login_page():
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown('<div class="login-container">', unsafe_allow_html=True)
-        st.markdown("### Admin Login")
-        admin_username = st.text_input("Admin Username", key="admin_user", value="admin")
-        admin_pass = st.text_input("Admin Password", type="password", key="admin_pass")
+        with st.container(border=True):
+            st.markdown("### Admin Login")
+            admin_username = st.text_input("Admin Username", key="admin_user", value="admin")
+            admin_pass = st.text_input("Admin Password", type="password", key="admin_pass")
 
-        if st.button("Login", key="admin_login_btn", use_container_width=True):
-            df_admins = load_data("Admin Logins")
+            if st.button("Login", key="admin_login_btn", use_container_width=True):
+                df_admins = load_data("Admin Logins")
 
-            if df_admins.empty:
-                # First-ever admin login: seed the sheet with a hashed
-                # account instead of leaving the password hardcoded in
-                # source. Uses the same bootstrap password as before,
-                # once, to avoid locking anyone out on rollout.
-                if admin_username.strip() == "admin" and admin_pass == "admin2026":
-                    write_data("Admin Logins", {
-                        "Username": "admin",
-                        "Password": hash_password("admin2026"),
-                    })
-                    st.session_state.logged_in = True
-                    st.session_state.username = "admin"
-                    st.rerun()
+                if df_admins.empty:
+                    # First-ever admin login: seed the sheet with a hashed
+                    # account instead of leaving the password hardcoded in
+                    # source. Uses the same bootstrap password as before,
+                    # once, to avoid locking anyone out on rollout.
+                    if admin_username.strip() == "admin" and admin_pass == "admin2026":
+                        write_data("Admin Logins", {
+                            "Username": "admin",
+                            "Password": hash_password("admin2026"),
+                        })
+                        st.session_state.logged_in = True
+                        st.session_state.username = "admin"
+                        st.rerun()
+                    else:
+                        st.error("Invalid admin username or password.")
                 else:
-                    st.error("Invalid admin username or password.")
-            else:
-                df_admins.columns = df_admins.columns.astype(str).str.strip()
-                admin_match = df_admins[df_admins["Username"].astype(str).str.strip() == admin_username.strip()]
-                if not admin_match.empty and verify_password(admin_pass, admin_match.iloc[0].get("Password", "")):
-                    admin_row = admin_match.iloc[0]
+                    df_admins.columns = df_admins.columns.astype(str).str.strip()
+                    admin_match = df_admins[df_admins["Username"].astype(str).str.strip() == admin_username.strip()]
+                    if not admin_match.empty and verify_password(admin_pass, admin_match.iloc[0].get("Password", "")):
+                        admin_row = admin_match.iloc[0]
 
-                    # Upgrade a legacy plaintext admin row the same way
-                    # student rows used to get upgraded.
-                    if not is_hashed(admin_row.get("Password", "")):
-                        row_idx = admin_match.index[0] + 2
-                        pw_col_idx = df_admins.columns.get_loc("Password") + 1
-                        update_cell("Admin Logins", row_idx, pw_col_idx, hash_password(admin_pass))
+                        # Upgrade a legacy plaintext admin row the same way
+                        # student rows used to get upgraded.
+                        if not is_hashed(admin_row.get("Password", "")):
+                            row_idx = admin_match.index[0] + 2
+                            pw_col_idx = df_admins.columns.get_loc("Password") + 1
+                            update_cell("Admin Logins", row_idx, pw_col_idx, hash_password(admin_pass))
 
-                    st.session_state.logged_in = True
-                    st.session_state.username = admin_username.strip()
-                    st.rerun()
-                else:
-                    st.error("Invalid admin username or password.")
+                        st.session_state.logged_in = True
+                        st.session_state.username = admin_username.strip()
+                        st.rerun()
+                    else:
+                        st.error("Invalid admin username or password.")
 
-        st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown(f"""
     <div class="bottom-footer">
@@ -1810,37 +1832,37 @@ def admin_register_student():
     st.markdown("## Register Student")
     st.caption("Students enrol on a year-by-year basis. Re-register the same student next year with a new Academic Year row if they continue.")
 
-    st.markdown('<div class="dash-card"><div class="dash-card-header">Student Information</div><div class="dash-card-body">', unsafe_allow_html=True)
+    with st.container(border=True):
+        st.markdown("#### Student Information")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        student_name = st.text_input("Student Full Name*")
-        academic_year = st.number_input("Academic Year*", min_value=2020, max_value=2100, value=date.today().year, step=1)
-    with col2:
-        level = st.selectbox("Level*", LEVELS)
-        default_fee = ANNUAL_FEE_BY_LEVEL.get(level, 0.0)
-        annual_fee = st.number_input("Annual Fee ($)*", min_value=0.0, step=10.0, value=default_fee)
+        col1, col2 = st.columns(2)
+        with col1:
+            student_name = st.text_input("Student Full Name*")
+            academic_year = st.number_input("Academic Year*", min_value=2020, max_value=2100, value=date.today().year, step=1)
+        with col2:
+            level = st.selectbox("Level*", LEVELS)
+            default_fee = ANNUAL_FEE_BY_LEVEL.get(level, 0.0)
+            annual_fee = st.number_input("Annual Fee ($)*", min_value=0.0, step=10.0, value=default_fee)
 
-    if st.button("Register Student", use_container_width=True):
-        if not student_name.strip():
-            st.error("Please enter the student's name.")
-        else:
-            df_students_existing = load_data("Students")
-            new_student_number = generate_student_number(df_students_existing)
-            success = write_data("Students", {
-                "Student Number": new_student_number,
-                "Student Name": student_name.strip(),
-                "Academic Year": academic_year,
-                "Level": level,
-                "Annual Fee": annual_fee,
-            })
-            if success:
-                st.success(f"{student_name} registered for {academic_year} ({level}) — Student Number {new_student_number}.")
-                st.balloons()
+        if st.button("Register Student", use_container_width=True):
+            if not student_name.strip():
+                st.error("Please enter the student's name.")
             else:
-                st.error("There was an error saving to the database.")
+                df_students_existing = load_data("Students")
+                new_student_number = generate_student_number(df_students_existing)
+                success = write_data("Students", {
+                    "Student Number": new_student_number,
+                    "Student Name": student_name.strip(),
+                    "Academic Year": academic_year,
+                    "Level": level,
+                    "Annual Fee": annual_fee,
+                })
+                if success:
+                    st.success(f"{student_name} registered for {academic_year} ({level}) — Student Number {new_student_number}.")
+                    st.balloons()
+                else:
+                    st.error("There was an error saving to the database.")
 
-    st.markdown('</div></div>', unsafe_allow_html=True)
 
 def admin_fees_owing():
     st.markdown("## Fees Owing (Debtors)")
@@ -1926,114 +1948,114 @@ def admin_record_fee():
     st.markdown("## Record Fee Payment")
     st.caption("Academic Year is which year's fees this payment is FOR — set it ahead to record a prepayment (Deferred Income) for a future year.")
 
-    st.markdown('<div class="dash-card"><div class="dash-card-header">Payment Details</div><div class="dash-card-body">', unsafe_allow_html=True)
+    with st.container(border=True):
+        st.markdown("#### Payment Details")
 
-    df_students = load_data("Students")
-    if not df_students.empty:
-        df_students.columns = df_students.columns.astype(str).str.strip()
-    student_display_list, student_label_to_id = build_student_dropdown(df_students)
+        df_students = load_data("Students")
+        if not df_students.empty:
+            df_students.columns = df_students.columns.astype(str).str.strip()
+        student_display_list, student_label_to_id = build_student_dropdown(df_students)
 
-    col1, col2 = st.columns(2)
-    with col1:
-        selected_label = st.selectbox("Student Name*", student_display_list)
-        payment_date = st.date_input("Payment Date", value=date.today())
-    with col2:
-        academic_year = st.number_input("Academic Year (fees this payment is FOR)*", min_value=2020, max_value=2100, value=date.today().year, step=1)
-        amount = st.number_input("Amount Paid*", min_value=0.0, step=10.0, format="%.2f")
-        payment_method = st.selectbox("Payment Method", ["Cash", "EFT", "Mobile Money", "Cheque", "Other"])
+        col1, col2 = st.columns(2)
+        with col1:
+            selected_label = st.selectbox("Student Name*", student_display_list)
+            payment_date = st.date_input("Payment Date", value=date.today())
+        with col2:
+            academic_year = st.number_input("Academic Year (fees this payment is FOR)*", min_value=2020, max_value=2100, value=date.today().year, step=1)
+            amount = st.number_input("Amount Paid*", min_value=0.0, step=10.0, format="%.2f")
+            payment_method = st.selectbox("Payment Method", ["Cash", "EFT", "Mobile Money", "Cheque", "Other"])
 
-    if academic_year > date.today().year:
-        st.info(f"This will be recorded as a prepayment for {academic_year} — it adds to Cash now but shows as Deferred Income (a liability) on the Balance Sheet until {academic_year} arrives.")
+        if academic_year > date.today().year:
+            st.info(f"This will be recorded as a prepayment for {academic_year} — it adds to Cash now but shows as Deferred Income (a liability) on the Balance Sheet until {academic_year} arrives.")
 
-    if st.button("Record Payment", use_container_width=True):
-        if selected_label == "Select student...":
-            st.error("Please select a student.")
-        elif amount <= 0:
-            st.error("Please enter an amount.")
-        else:
-            student_number = student_label_to_id.get(selected_label, "")
-            student_name = selected_label.split(" (")[0]
-            success = write_data("Fee Payments", {
-                "Student Number": student_number,
-                "Student Name": student_name,
-                "Academic Year": academic_year,
-                "Date": str(payment_date),
-                "Amount Paid": float(amount),
-                "Payment Method": payment_method,
-            })
-            if success:
-                st.success(f"Payment of ${amount:,.2f} recorded for {student_name} ({academic_year}).")
+        if st.button("Record Payment", use_container_width=True):
+            if selected_label == "Select student...":
+                st.error("Please select a student.")
+            elif amount <= 0:
+                st.error("Please enter an amount.")
             else:
-                st.error("Failed to record payment.")
+                student_number = student_label_to_id.get(selected_label, "")
+                student_name = selected_label.split(" (")[0]
+                success = write_data("Fee Payments", {
+                    "Student Number": student_number,
+                    "Student Name": student_name,
+                    "Academic Year": academic_year,
+                    "Date": str(payment_date),
+                    "Amount Paid": float(amount),
+                    "Payment Method": payment_method,
+                })
+                if success:
+                    st.success(f"Payment of ${amount:,.2f} recorded for {student_name} ({academic_year}).")
+                else:
+                    st.error("Failed to record payment.")
 
-    st.markdown('</div></div>', unsafe_allow_html=True)
 
 def admin_record_expense():
     st.markdown("## Record Expense")
     
-    st.markdown('<div class="dash-card"><div class="dash-card-header">Expense Details</div><div class="dash-card-body">', unsafe_allow_html=True)
+    with st.container(border=True):
+        st.markdown("#### Expense Details")
     
-    col1, col2 = st.columns(2)
+        col1, col2 = st.columns(2)
     
-    with col1:
-        expense_date = st.date_input("Date", value=date.today(), key="exp_date")
-        category = st.selectbox("Category", list(EXPENSE_LINE_LABELS.keys()))
+        with col1:
+            expense_date = st.date_input("Date", value=date.today(), key="exp_date")
+            category = st.selectbox("Category", list(EXPENSE_LINE_LABELS.keys()))
     
-    with col2:
-        description = st.text_area("Expense Description")
-        amount = st.number_input("Amount*", min_value=0.0, step=10.0, key="exp_amount")
+        with col2:
+            description = st.text_area("Expense Description")
+            amount = st.number_input("Amount*", min_value=0.0, step=10.0, key="exp_amount")
     
-    if st.button("Record Expense", use_container_width=True):
-        if amount <= 0:
-            st.error("Please enter an amount.")
-        else:
-            # Headers expected in the "Expenses" tab:
-            # Timestamp | Date | Description | Amount | Category
-            # (Financial year is derived from Date — no Month field needed.)
-            success = write_data("Expenses", {
-                "Timestamp": str(datetime.now()),
-                "Date": str(expense_date),
-                "Description": description,
-                "Amount": amount,
-                "Category": category,
-            })
-            if success:
-                st.success(f"Expense of ${amount:,.2f} recorded!")
+        if st.button("Record Expense", use_container_width=True):
+            if amount <= 0:
+                st.error("Please enter an amount.")
             else:
-                st.error("Failed to record expense.")
+                # Headers expected in the "Expenses" tab:
+                # Timestamp | Date | Description | Amount | Category
+                # (Financial year is derived from Date — no Month field needed.)
+                success = write_data("Expenses", {
+                    "Timestamp": str(datetime.now()),
+                    "Date": str(expense_date),
+                    "Description": description,
+                    "Amount": amount,
+                    "Category": category,
+                })
+                if success:
+                    st.success(f"Expense of ${amount:,.2f} recorded!")
+                else:
+                    st.error("Failed to record expense.")
     
-    st.markdown('</div></div>', unsafe_allow_html=True)
 
 def admin_record_other_income():
     st.markdown("## Record Other Income")
     
-    st.markdown('<div class="dash-card"><div class="dash-card-header">Income Details</div><div class="dash-card-body">', unsafe_allow_html=True)
+    with st.container(border=True):
+        st.markdown("#### Income Details")
     
-    col1, col2 = st.columns(2)
+        col1, col2 = st.columns(2)
     
-    with col1:
-        income_date = st.date_input("Date", value=date.today(), key="inc_date")
+        with col1:
+            income_date = st.date_input("Date", value=date.today(), key="inc_date")
     
-    with col2:
-        description = st.text_area("Income Description", key="inc_desc")
-        amount = st.number_input("Amount*", min_value=0.0, step=10.0, key="inc_amount")
+        with col2:
+            description = st.text_area("Income Description", key="inc_desc")
+            amount = st.number_input("Amount*", min_value=0.0, step=10.0, key="inc_amount")
     
-    if st.button("Record Income", use_container_width=True):
-        if amount <= 0:
-            st.error("Please enter an amount.")
-        else:
-            success = write_data("Other Income", {
-                "Timestamp": str(datetime.now()),
-                "Date": str(income_date),
-                "Income Description": description,
-                "Amount": amount,
-            })
-            if success:
-                st.success(f"Income of ${amount:,.2f} recorded!")
+        if st.button("Record Income", use_container_width=True):
+            if amount <= 0:
+                st.error("Please enter an amount.")
             else:
-                st.error("Failed to record income.")
+                success = write_data("Other Income", {
+                    "Timestamp": str(datetime.now()),
+                    "Date": str(income_date),
+                    "Income Description": description,
+                    "Amount": amount,
+                })
+                if success:
+                    st.success(f"Income of ${amount:,.2f} recorded!")
+                else:
+                    st.error("Failed to record income.")
     
-    st.markdown('</div></div>', unsafe_allow_html=True)
 
 def admin_all_students():
     st.markdown("## All Students")
@@ -2054,161 +2076,161 @@ def admin_all_students():
 def admin_account_settings():
     st.markdown("## Account Settings")
     
-    st.markdown('<div class="dash-card"><div class="dash-card-header">Change Your Password</div><div class="dash-card-body">', unsafe_allow_html=True)
-    st.markdown(f"**Logged in as:** {st.session_state.username}")
+    with st.container(border=True):
+        st.markdown("#### Change Your Password")
+        st.markdown(f"**Logged in as:** {st.session_state.username}")
     
-    current_password = st.text_input("Current Password", type="password", key="admin_current_pw")
-    new_password = st.text_input("New Password", type="password", key="admin_new_pw")
-    confirm_password = st.text_input("Confirm New Password", type="password", key="admin_confirm_pw")
+        current_password = st.text_input("Current Password", type="password", key="admin_current_pw")
+        new_password = st.text_input("New Password", type="password", key="admin_new_pw")
+        confirm_password = st.text_input("Confirm New Password", type="password", key="admin_confirm_pw")
     
-    if st.button("Update Password", use_container_width=True, key="admin_update_pw_btn"):
-        if not current_password or not new_password or not confirm_password:
-            st.error("Please fill in all three fields.")
-        elif new_password != confirm_password:
-            st.error("New password and confirmation don't match.")
-        elif len(new_password) < 6:
-            st.error("New password should be at least 6 characters.")
-        else:
-            df_admins = load_data("Admin Logins")
-            if df_admins.empty:
-                st.error("Unable to load admin login data.")
+        if st.button("Update Password", use_container_width=True, key="admin_update_pw_btn"):
+            if not current_password or not new_password or not confirm_password:
+                st.error("Please fill in all three fields.")
+            elif new_password != confirm_password:
+                st.error("New password and confirmation don't match.")
+            elif len(new_password) < 6:
+                st.error("New password should be at least 6 characters.")
             else:
-                df_admins.columns = df_admins.columns.astype(str).str.strip()
-                my_row = df_admins[df_admins["Username"].astype(str).str.strip() == st.session_state.username.strip()]
-                if my_row.empty:
-                    st.error("Could not find your admin login record.")
-                elif not verify_password(current_password, my_row.iloc[0].get("Password", "")):
-                    st.error("Current password is incorrect.")
+                df_admins = load_data("Admin Logins")
+                if df_admins.empty:
+                    st.error("Unable to load admin login data.")
                 else:
-                    row_idx = my_row.index[0] + 2
-                    pw_col_idx = df_admins.columns.get_loc("Password") + 1
-                    success = update_cell("Admin Logins", row_idx, pw_col_idx, hash_password(new_password))
-                    if success:
-                        st.success("Password updated. Use your new password next time you log in.")
+                    df_admins.columns = df_admins.columns.astype(str).str.strip()
+                    my_row = df_admins[df_admins["Username"].astype(str).str.strip() == st.session_state.username.strip()]
+                    if my_row.empty:
+                        st.error("Could not find your admin login record.")
+                    elif not verify_password(current_password, my_row.iloc[0].get("Password", "")):
+                        st.error("Current password is incorrect.")
                     else:
-                        st.error("Failed to update password.")
+                        row_idx = my_row.index[0] + 2
+                        pw_col_idx = df_admins.columns.get_loc("Password") + 1
+                        success = update_cell("Admin Logins", row_idx, pw_col_idx, hash_password(new_password))
+                        if success:
+                            st.success("Password updated. Use your new password next time you log in.")
+                        else:
+                            st.error("Failed to update password.")
     
-    st.markdown('</div></div>', unsafe_allow_html=True)
     
-    st.markdown('<div class="dash-card"><div class="dash-card-header">Add Another Admin Account</div><div class="dash-card-body">', unsafe_allow_html=True)
+    with st.container(border=True):
+        st.markdown("#### Add Another Admin Account")
     
-    new_admin_username = st.text_input("New Admin Username", key="new_admin_user")
-    new_admin_password = st.text_input("New Admin Password", type="password", key="new_admin_pw")
+        new_admin_username = st.text_input("New Admin Username", key="new_admin_user")
+        new_admin_password = st.text_input("New Admin Password", type="password", key="new_admin_pw")
     
-    if st.button("Create Admin Account", use_container_width=True, key="create_admin_btn"):
-        if not new_admin_username.strip() or not new_admin_password:
-            st.error("Please fill in both fields.")
-        elif len(new_admin_password) < 6:
-            st.error("Password should be at least 6 characters.")
-        else:
-            df_admins = load_data("Admin Logins")
-            taken = False
-            if not df_admins.empty and "Username" in df_admins.columns:
-                df_admins.columns = df_admins.columns.astype(str).str.strip()
-                taken = not df_admins[df_admins["Username"].astype(str).str.strip().str.lower() == new_admin_username.strip().lower()].empty
-            
-            if taken:
-                st.error(f"Username '{new_admin_username.strip()}' is already taken.")
+        if st.button("Create Admin Account", use_container_width=True, key="create_admin_btn"):
+            if not new_admin_username.strip() or not new_admin_password:
+                st.error("Please fill in both fields.")
+            elif len(new_admin_password) < 6:
+                st.error("Password should be at least 6 characters.")
             else:
-                success = write_data("Admin Logins", {
-                    "Username": new_admin_username.strip(),
-                    "Password": hash_password(new_admin_password),
-                })
-                if success:
-                    st.success(f"Admin account '{new_admin_username.strip()}' created.")
+                df_admins = load_data("Admin Logins")
+                taken = False
+                if not df_admins.empty and "Username" in df_admins.columns:
+                    df_admins.columns = df_admins.columns.astype(str).str.strip()
+                    taken = not df_admins[df_admins["Username"].astype(str).str.strip().str.lower() == new_admin_username.strip().lower()].empty
+            
+                if taken:
+                    st.error(f"Username '{new_admin_username.strip()}' is already taken.")
                 else:
-                    st.error("Failed to create admin account.")
+                    success = write_data("Admin Logins", {
+                        "Username": new_admin_username.strip(),
+                        "Password": hash_password(new_admin_password),
+                    })
+                    if success:
+                        st.success(f"Admin account '{new_admin_username.strip()}' created.")
+                    else:
+                        st.error("Failed to create admin account.")
     
-    st.markdown('</div></div>', unsafe_allow_html=True)
 
 def admin_staff_register():
     st.markdown("## Staff Register")
     st.caption("Enter headcount and monthly salary per staff category, for one financial year at a time. Monthly and annual costs are calculated automatically.")
 
-    st.markdown('<div class="dash-card"><div class="dash-card-header">Set Staffing for a Year</div><div class="dash-card-body">', unsafe_allow_html=True)
+    with st.container(border=True):
+        st.markdown("#### Set Staffing for a Year")
 
-    years = list(range(date.today().year - 1, date.today().year + 3))
-    selected_year = st.selectbox("Financial Year", years, index=years.index(date.today().year))
+        years = list(range(date.today().year - 1, date.today().year + 3))
+        selected_year = st.selectbox("Financial Year", years, index=years.index(date.today().year))
 
-    _, existing = compute_staff_costs_for_year(selected_year)
-    existing_map = {}
-    if not existing.empty:
-        for _, row in existing.iterrows():
-            existing_map[row["Category"]] = row
+        _, existing = compute_staff_costs_for_year(selected_year)
+        existing_map = {}
+        if not existing.empty:
+            for _, row in existing.iterrows():
+                existing_map[row["Category"]] = row
 
-    entries = {}
-    for cat in STAFF_CATEGORIES:
-        col1, col2 = st.columns(2)
-        default_n = int(existing_map[cat]["Number of Staff"]) if cat in existing_map else 0
-        default_s = float(existing_map[cat]["Monthly Salary per Staff"]) if cat in existing_map else 0.0
-        with col1:
-            n = st.number_input(f"{cat} — Number of Staff", min_value=0, step=1, value=default_n, key=f"staff_n_{cat}")
-        with col2:
-            s = st.number_input(f"{cat} — Monthly Salary per Staff ($)", min_value=0.0, step=10.0, value=default_s, key=f"staff_s_{cat}")
-        entries[cat] = (n, s)
+        entries = {}
+        for cat in STAFF_CATEGORIES:
+            col1, col2 = st.columns(2)
+            default_n = int(existing_map[cat]["Number of Staff"]) if cat in existing_map else 0
+            default_s = float(existing_map[cat]["Monthly Salary per Staff"]) if cat in existing_map else 0.0
+            with col1:
+                n = st.number_input(f"{cat} — Number of Staff", min_value=0, step=1, value=default_n, key=f"staff_n_{cat}")
+            with col2:
+                s = st.number_input(f"{cat} — Monthly Salary per Staff ($)", min_value=0.0, step=10.0, value=default_s, key=f"staff_s_{cat}")
+            entries[cat] = (n, s)
 
-    if st.button(f"Save Staff Register for {selected_year}", use_container_width=True):
-        ok = True
-        for cat, (n, s) in entries.items():
-            success = write_data("Staff Register", {
-                "Financial Year": selected_year,
-                "Category": cat,
-                "Number of Staff": n,
-                "Monthly Salary per Staff": s,
-            })
-            ok = ok and success
-        if ok:
-            st.success(f"Staff Register saved for {selected_year}.")
-        else:
-            st.error("Some rows failed to save — check the 'Staff Register' tab exists with the right headers.")
+        if st.button(f"Save Staff Register for {selected_year}", use_container_width=True):
+            ok = True
+            for cat, (n, s) in entries.items():
+                success = write_data("Staff Register", {
+                    "Financial Year": selected_year,
+                    "Category": cat,
+                    "Number of Staff": n,
+                    "Monthly Salary per Staff": s,
+                })
+                ok = ok and success
+            if ok:
+                st.success(f"Staff Register saved for {selected_year}.")
+            else:
+                st.error("Some rows failed to save — check the 'Staff Register' tab exists with the right headers.")
 
-    st.markdown('</div></div>', unsafe_allow_html=True)
 
     annual_total, breakdown = compute_staff_costs_for_year(selected_year)
     if not breakdown.empty:
-        st.markdown('<div class="dash-card"><div class="dash-card-header">Current Staff Costs Summary</div><div class="dash-card-body">', unsafe_allow_html=True)
-        st.dataframe(breakdown, use_container_width=True, hide_index=True)
-        st.markdown(f"**Total annual staff costs for {selected_year}:** ${annual_total:,.2f}")
-        st.markdown('</div></div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown("#### Current Staff Costs Summary")
+            st.dataframe(breakdown, use_container_width=True, hide_index=True)
+            st.markdown(f"**Total annual staff costs for {selected_year}:** ${annual_total:,.2f}")
 
 
 def admin_fixed_assets_register():
     st.markdown("## Fixed Assets Register")
     st.caption("Each row is one asset. Depreciation is straight-line based on the rate you enter.")
 
-    st.markdown('<div class="dash-card"><div class="dash-card-header">Add an Asset</div><div class="dash-card-body">', unsafe_allow_html=True)
-    col1, col2 = st.columns(2)
-    with col1:
-        category = st.selectbox("Category", ASSET_CATEGORIES)
-        description = st.text_input("Description", key="asset_desc")
-        date_acquired = st.date_input("Date Acquired", value=date.today(), key="asset_date")
-    with col2:
-        cost = st.number_input("Cost ($)*", min_value=0.0, step=50.0, key="asset_cost")
-        dep_rate = st.number_input("Depreciation Rate (% per year)*", min_value=0.0, max_value=100.0, step=1.0, key="asset_rate")
+    with st.container(border=True):
+        st.markdown("#### Add an Asset")
+        col1, col2 = st.columns(2)
+        with col1:
+            category = st.selectbox("Category", ASSET_CATEGORIES)
+            description = st.text_input("Description", key="asset_desc")
+            date_acquired = st.date_input("Date Acquired", value=date.today(), key="asset_date")
+        with col2:
+            cost = st.number_input("Cost ($)*", min_value=0.0, step=50.0, key="asset_cost")
+            dep_rate = st.number_input("Depreciation Rate (% per year)*", min_value=0.0, max_value=100.0, step=1.0, key="asset_rate")
 
-    if st.button("Add Asset", use_container_width=True):
-        if cost <= 0:
-            st.error("Please enter a cost.")
-        else:
-            success = write_data("Fixed Assets", {
-                "Category": category,
-                "Description": description,
-                "Cost": cost,
-                "Date Acquired": str(date_acquired),
-                "Depreciation Rate (%)": dep_rate,
-            })
-            if success:
-                st.success(f"{category} asset added.")
+        if st.button("Add Asset", use_container_width=True):
+            if cost <= 0:
+                st.error("Please enter a cost.")
             else:
-                st.error("Failed to add asset — check the 'Fixed Assets' tab exists with the right headers.")
-    st.markdown('</div></div>', unsafe_allow_html=True)
+                success = write_data("Fixed Assets", {
+                    "Category": category,
+                    "Description": description,
+                    "Cost": cost,
+                    "Date Acquired": str(date_acquired),
+                    "Depreciation Rate (%)": dep_rate,
+                })
+                if success:
+                    st.success(f"{category} asset added.")
+                else:
+                    st.error("Failed to add asset — check the 'Fixed Assets' tab exists with the right headers.")
 
     df_assets, total_dep, total_nbv = compute_fixed_assets()
     if not df_assets.empty:
-        st.markdown('<div class="dash-card"><div class="dash-card-header">Asset Register</div><div class="dash-card-body">', unsafe_allow_html=True)
-        st.dataframe(df_assets, use_container_width=True, hide_index=True)
-        st.markdown(f"**Total annual depreciation:** ${total_dep:,.2f} &nbsp;&nbsp; **Total net book value:** ${total_nbv:,.2f}")
-        st.markdown('</div></div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown("#### Asset Register")
+            st.dataframe(df_assets, use_container_width=True, hide_index=True)
+            st.markdown(f"**Total annual depreciation:** ${total_dep:,.2f} &nbsp;&nbsp; **Total net book value:** ${total_nbv:,.2f}")
     else:
         st.info("No fixed assets recorded yet.")
 
@@ -2217,39 +2239,39 @@ def admin_loans_register():
     st.markdown("## Loans Register")
     st.caption("Each row is one loan. To record a repayment or write-off, edit the 'Loans' tab in Google Sheets directly.")
 
-    st.markdown('<div class="dash-card"><div class="dash-card-header">Add a Loan</div><div class="dash-card-body">', unsafe_allow_html=True)
-    col1, col2 = st.columns(2)
-    with col1:
-        loan_type = st.selectbox("Loan Type", LOAN_TYPES)
-        lender = st.text_input("Lender", key="loan_lender")
-        start_date = st.date_input("Start Date", value=date.today(), key="loan_start")
-    with col2:
-        principal = st.number_input("Principal Amount ($)*", min_value=0.0, step=100.0, key="loan_principal")
-        rate = st.number_input("Interest Rate (% per year)*", min_value=0.0, max_value=100.0, step=0.5, key="loan_rate")
+    with st.container(border=True):
+        st.markdown("#### Add a Loan")
+        col1, col2 = st.columns(2)
+        with col1:
+            loan_type = st.selectbox("Loan Type", LOAN_TYPES)
+            lender = st.text_input("Lender", key="loan_lender")
+            start_date = st.date_input("Start Date", value=date.today(), key="loan_start")
+        with col2:
+            principal = st.number_input("Principal Amount ($)*", min_value=0.0, step=100.0, key="loan_principal")
+            rate = st.number_input("Interest Rate (% per year)*", min_value=0.0, max_value=100.0, step=0.5, key="loan_rate")
 
-    if st.button("Add Loan", use_container_width=True):
-        if principal <= 0:
-            st.error("Please enter a principal amount.")
-        else:
-            success = write_data("Loans", {
-                "Loan Type": loan_type,
-                "Lender": lender,
-                "Principal Amount": principal,
-                "Interest Rate (%)": rate,
-                "Start Date": str(start_date),
-            })
-            if success:
-                st.success(f"{loan_type} loan added.")
+        if st.button("Add Loan", use_container_width=True):
+            if principal <= 0:
+                st.error("Please enter a principal amount.")
             else:
-                st.error("Failed to add loan — check the 'Loans' tab exists with the right headers.")
-    st.markdown('</div></div>', unsafe_allow_html=True)
+                success = write_data("Loans", {
+                    "Loan Type": loan_type,
+                    "Lender": lender,
+                    "Principal Amount": principal,
+                    "Interest Rate (%)": rate,
+                    "Start Date": str(start_date),
+                })
+                if success:
+                    st.success(f"{loan_type} loan added.")
+                else:
+                    st.error("Failed to add loan — check the 'Loans' tab exists with the right headers.")
 
     df_loans, long_term, short_term, interest = compute_loans()
     if not df_loans.empty:
-        st.markdown('<div class="dash-card"><div class="dash-card-header">Loan Register</div><div class="dash-card-body">', unsafe_allow_html=True)
-        st.dataframe(df_loans, use_container_width=True, hide_index=True)
-        st.markdown(f"**Long-term loans:** ${long_term:,.2f} &nbsp;&nbsp; **Short-term loans:** ${short_term:,.2f} &nbsp;&nbsp; **Annual finance costs:** ${interest:,.2f}")
-        st.markdown('</div></div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown("#### Loan Register")
+            st.dataframe(df_loans, use_container_width=True, hide_index=True)
+            st.markdown(f"**Long-term loans:** ${long_term:,.2f} &nbsp;&nbsp; **Short-term loans:** ${short_term:,.2f} &nbsp;&nbsp; **Annual finance costs:** ${interest:,.2f}")
     else:
         st.info("No loans recorded yet.")
 
@@ -2258,54 +2280,54 @@ def admin_creditors_register():
     st.markdown("## Creditors Register")
     st.caption("Amounts currently owed to suppliers. Remove a line by editing the 'Creditors' tab once it's paid.")
 
-    st.markdown('<div class="dash-card"><div class="dash-card-header">Add a Creditor</div><div class="dash-card-body">', unsafe_allow_html=True)
-    description = st.text_input("Description", key="cred_desc")
-    amount = st.number_input("Amount Owed ($)*", min_value=0.0, step=10.0, key="cred_amount")
-    cred_date = st.date_input("Date", value=date.today(), key="cred_date")
+    with st.container(border=True):
+        st.markdown("#### Add a Creditor")
+        description = st.text_input("Description", key="cred_desc")
+        amount = st.number_input("Amount Owed ($)*", min_value=0.0, step=10.0, key="cred_amount")
+        cred_date = st.date_input("Date", value=date.today(), key="cred_date")
 
-    if st.button("Add Creditor", use_container_width=True):
-        if amount <= 0:
-            st.error("Please enter an amount.")
-        else:
-            success = write_data("Creditors", {
-                "Description": description, "Amount": amount, "Date": str(cred_date),
-            })
-            if success:
-                st.success("Creditor added.")
+        if st.button("Add Creditor", use_container_width=True):
+            if amount <= 0:
+                st.error("Please enter an amount.")
             else:
-                st.error("Failed to add creditor — check the 'Creditors' tab exists with the right headers.")
-    st.markdown('</div></div>', unsafe_allow_html=True)
+                success = write_data("Creditors", {
+                    "Description": description, "Amount": amount, "Date": str(cred_date),
+                })
+                if success:
+                    st.success("Creditor added.")
+                else:
+                    st.error("Failed to add creditor — check the 'Creditors' tab exists with the right headers.")
 
     df_creditors = load_data("Creditors")
     if not df_creditors.empty:
-        st.markdown('<div class="dash-card"><div class="dash-card-header">Outstanding Creditors</div><div class="dash-card-body">', unsafe_allow_html=True)
-        st.dataframe(df_creditors, use_container_width=True, hide_index=True)
-        st.markdown(f"**Total creditors:** ${safe_sum(df_creditors, 'Amount'):,.2f}")
-        st.markdown('</div></div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown("#### Outstanding Creditors")
+            st.dataframe(df_creditors, use_container_width=True, hide_index=True)
+            st.markdown(f"**Total creditors:** ${safe_sum(df_creditors, 'Amount'):,.2f}")
 
 
 def admin_equity_register():
     st.markdown("## Equity Register")
     st.caption("Share capital, share premium and revaluation reserve movements. Retained earnings is calculated automatically on the Balance Sheet.")
 
-    st.markdown('<div class="dash-card"><div class="dash-card-header">Add an Equity Movement</div><div class="dash-card-body">', unsafe_allow_html=True)
-    item = st.selectbox("Item", EQUITY_ITEMS)
-    amount = st.number_input("Amount ($)*", step=10.0, key="equity_amount")
-    eq_date = st.date_input("Date", value=date.today(), key="equity_date")
+    with st.container(border=True):
+        st.markdown("#### Add an Equity Movement")
+        item = st.selectbox("Item", EQUITY_ITEMS)
+        amount = st.number_input("Amount ($)*", step=10.0, key="equity_amount")
+        eq_date = st.date_input("Date", value=date.today(), key="equity_date")
 
-    if st.button("Add Equity Entry", use_container_width=True):
-        success = write_data("Equity", {"Item": item, "Amount": amount, "Date": str(eq_date)})
-        if success:
-            st.success(f"{item} entry added.")
-        else:
-            st.error("Failed to add entry — check the 'Equity' tab exists with the right headers.")
-    st.markdown('</div></div>', unsafe_allow_html=True)
+        if st.button("Add Equity Entry", use_container_width=True):
+            success = write_data("Equity", {"Item": item, "Amount": amount, "Date": str(eq_date)})
+            if success:
+                st.success(f"{item} entry added.")
+            else:
+                st.error("Failed to add entry — check the 'Equity' tab exists with the right headers.")
 
     df_equity = load_data("Equity")
     if not df_equity.empty:
-        st.markdown('<div class="dash-card"><div class="dash-card-header">Equity Entries</div><div class="dash-card-body">', unsafe_allow_html=True)
-        st.dataframe(df_equity, use_container_width=True, hide_index=True)
-        st.markdown('</div></div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown("#### Equity Entries")
+            st.dataframe(df_equity, use_container_width=True, hide_index=True)
 
 
 def admin_bank_statement_page():
