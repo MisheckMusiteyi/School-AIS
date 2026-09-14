@@ -2137,7 +2137,6 @@ def admin_equity_register():
 
 def admin_bank_statement_page():
     st.markdown("## Bank Statement")
-    st.caption("Every cash transaction — fees received, other income, and expenses paid — as a single running ledger.")
 
     with st.expander("Set / update opening balance"):
         current_amount, current_date = get_opening_balance()
