@@ -711,7 +711,17 @@ def connect_to_sheets():
     client = gspread.authorize(credentials)
     return client
 
+@st.cache_data(ttl=60, show_spinner=False)
 def load_data(sheet_name):
+    """
+    Cached for 60 seconds. Several pages (Income Statement, Balance
+    Sheet in particular) call load_data() for the same sheet multiple
+    times in one page render — without caching, that burns through
+    Google's free-tier read quota (60 reads/minute) almost immediately.
+    write_data/update_cell/overwrite_sheet all clear this cache after a
+    successful write, so new entries still show up right away rather
+    than waiting out the 60-second window.
+    """
     client = connect_to_sheets()
     for attempt in range(3):
         try:
@@ -752,6 +762,7 @@ def write_data(sheet_name, data_dict):
             row = [data_dict.get(h, "") for h in headers]
             sheet.append_row(row, value_input_option="USER_ENTERED")
             time.sleep(0.7)  # let Sheets settle before any immediate re-read
+            load_data.clear()
             return True
         except Exception as e:
             if attempt < 2:
@@ -767,13 +778,14 @@ def update_cell(sheet_name, row, col, value):
     try:
         sheet = client.open_by_key(SPREADSHEET_ID).worksheet(sheet_name)
         sheet.update_cell(row, col, value)
+        load_data.clear()
         return True
     except Exception as e:
         st.error(f"Failed to update cell: {e}")
         return False
 
 # ============================================================
-# IMAGE HELPERS
+# STUDENT NUMBER & DROPDOWN HELPERS
 # ============================================================
 def generate_student_number(df_students):
     """
@@ -927,6 +939,7 @@ def overwrite_sheet(sheet_name, df):
         sheet.clear()
         values = [df.columns.tolist()] + df.astype(str).values.tolist()
         sheet.update(values)
+        load_data.clear()
         return True
     except Exception as e:
         st.error(f"Failed to save '{sheet_name}': {e}")
