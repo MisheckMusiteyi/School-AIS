@@ -1285,6 +1285,152 @@ def df_to_excel_download(df, sheet_label):
     return buffer.getvalue()
 
 
+def bank_statement_to_excel(df_stmt, opening_amount, closing_balance, statement_start):
+    """
+    Builds a properly formatted .xlsx bank statement — letterhead-style
+    header block, a colored/bold table header row, currency number
+    formatting, borders, and alternating row shading — rather than a
+    bare data dump. Returns bytes for st.download_button.
+    """
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Bank Statement"
+
+    title_font = Font(name="Calibri", size=16, bold=True, color="0B2A3D")
+    subtitle_font = Font(name="Calibri", size=11, color="4A7A99")
+    header_label_font = Font(name="Calibri", size=10, bold=True)
+    body_font = Font(name="Calibri", size=10)
+    table_header_font = Font(name="Calibri", size=10, bold=True, color="FFFFFF")
+    table_header_fill = PatternFill(start_color="0A9EE8", end_color="0A9EE8", fill_type="solid")
+    alt_row_fill = PatternFill(start_color="EAF6FD", end_color="EAF6FD", fill_type="solid")
+    thin_border = Border(bottom=Side(style="thin", color="CFE8F7"))
+    money_format = '#,##0.00'
+
+    ws.merge_cells("A1:F1")
+    ws["A1"] = "STATEMENT OF ACCOUNT"
+    ws["A1"].font = title_font
+
+    ws.merge_cells("A2:F2")
+    ws["A2"] = BANK_NAME
+    ws["A2"].font = subtitle_font
+
+    info_rows = [
+        ("Account Holder", SCHOOL_NAME),
+        ("Statement Date", date.today().strftime("%B %d, %Y")),
+        ("Account No", BANK_ACCOUNT_NUMBER),
+        ("Account Type", BANK_ACCOUNT_TYPE),
+        ("Statement Period From", statement_start.strftime("%d %B %Y") if hasattr(statement_start, "strftime") else str(statement_start)),
+        ("Opening Balance", f"${opening_amount:,.2f}"),
+        ("Closing Balance", f"${closing_balance:,.2f}"),
+    ]
+    row = 4
+    for label, value in info_rows:
+        ws.cell(row=row, column=1, value=label).font = header_label_font
+        ws.cell(row=row, column=2, value=value).font = body_font
+        row += 1
+
+    table_start = row + 1
+    headers = ["Date", "Narration", "Ref No.", "Debit", "Credit", "Balance"]
+    for c, h in enumerate(headers, start=1):
+        cell = ws.cell(row=table_start, column=c, value=h)
+        cell.font = table_header_font
+        cell.fill = table_header_fill
+        cell.alignment = Alignment(horizontal="left")
+
+    for i, (_, r) in enumerate(df_stmt.iterrows()):
+        rr = table_start + 1 + i
+        values = [r["Date"], r["Narration"], r["Ref No."], r["Debit"] or None, r["Credit"] or None, r["Balance"]]
+        for c, v in enumerate(values, start=1):
+            cell = ws.cell(row=rr, column=c, value=v)
+            cell.font = body_font
+            cell.border = thin_border
+            if i % 2 == 0:
+                cell.fill = alt_row_fill
+            if c in (4, 5, 6) and v is not None:
+                cell.number_format = money_format
+
+    widths = [12, 38, 12, 12, 12, 14]
+    for c, w in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(c)].width = w
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    return buffer.getvalue()
+
+
+def bank_statement_to_pdf(df_stmt, opening_amount, closing_balance, statement_start):
+    """
+    Builds a PDF version of the bank statement using the same
+    letterhead-style layout as the Excel export. Returns bytes for
+    st.download_button.
+    """
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, pagesize=A4,
+        leftMargin=18 * mm, rightMargin=18 * mm, topMargin=16 * mm, bottomMargin=16 * mm,
+    )
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle("StmtTitle", parent=styles["Title"], fontSize=18, textColor=colors.HexColor("#0B2A3D"), spaceAfter=2)
+    subtitle_style = ParagraphStyle("StmtSubtitle", parent=styles["Normal"], fontSize=11, textColor=colors.HexColor("#4A7A99"), spaceAfter=10)
+    info_style = ParagraphStyle("StmtInfo", parent=styles["Normal"], fontSize=9.5, leading=14)
+
+    story = [
+        Paragraph("STATEMENT OF ACCOUNT", title_style),
+        Paragraph(BANK_NAME, subtitle_style),
+        Paragraph(
+            f"<b>Account Holder:</b> {SCHOOL_NAME}<br/>"
+            f"<b>Statement Date:</b> {date.today().strftime('%B %d, %Y')}<br/>"
+            f"<b>Account No:</b> {BANK_ACCOUNT_NUMBER} &nbsp;&nbsp; <b>Account Type:</b> {BANK_ACCOUNT_TYPE}<br/>"
+            f"<b>Statement Period From:</b> {statement_start.strftime('%d %B %Y') if hasattr(statement_start, 'strftime') else statement_start}<br/>"
+            f"<b>Opening Balance:</b> ${opening_amount:,.2f} &nbsp;&nbsp; <b>Closing Balance:</b> ${closing_balance:,.2f}",
+            info_style,
+        ),
+        Spacer(1, 12),
+    ]
+
+    table_data = [["Date", "Narration", "Ref No.", "Debit", "Credit", "Balance"]]
+    for _, r in df_stmt.iterrows():
+        table_data.append([
+            r["Date"],
+            Paragraph(str(r["Narration"]), styles["Normal"]),
+            r["Ref No."],
+            f"{r['Debit']:,.2f}" if r["Debit"] else "",
+            f"{r['Credit']:,.2f}" if r["Credit"] else "",
+            f"{r['Balance']:,.2f}",
+        ])
+
+    table = Table(table_data, colWidths=[20 * mm, 62 * mm, 20 * mm, 22 * mm, 22 * mm, 25 * mm], repeatRows=1)
+    style_commands = [
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0A9EE8")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+        ("ALIGN", (3, 0), (5, -1), "RIGHT"),
+        ("LINEBELOW", (0, 0), (-1, -2), 0.4, colors.HexColor("#CFE8F7")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]
+    for i in range(1, len(table_data)):
+        if i % 2 == 1:
+            style_commands.append(("BACKGROUND", (0, i), (-1, i), colors.HexColor("#EAF6FD")))
+    table.setStyle(TableStyle(style_commands))
+    story.append(table)
+
+    doc.build(story)
+    return buffer.getvalue()
+
+
 # ============================================================
 # BANK STATEMENT
 # ============================================================
@@ -2226,21 +2372,23 @@ def admin_bank_statement_page():
     html += '</table>'
     st.markdown(html, unsafe_allow_html=True)
 
-    header_rows = [
-        {"Date": "", "Narration": "STATEMENT OF ACCOUNT", "Ref No.": "", "Debit": "", "Credit": "", "Balance": ""},
-        {"Date": "", "Narration": BANK_NAME, "Ref No.": "", "Debit": "", "Credit": "", "Balance": ""},
-        {"Date": "", "Narration": SCHOOL_NAME, "Ref No.": "", "Debit": "", "Credit": "", "Balance": ""},
-        {"Date": "", "Narration": f"Statement date: {date.today().strftime('%B %d, %Y')}", "Ref No.": "", "Debit": "", "Credit": "", "Balance": ""},
-        {"Date": "", "Narration": "", "Ref No.": "", "Debit": "", "Credit": "", "Balance": ""},
-    ]
-    df_export = pd.concat([pd.DataFrame(header_rows), df_stmt], ignore_index=True)
-    st.download_button(
-        "Download as Excel",
-        data=df_to_excel_download(df_export, "Bank Statement"),
-        file_name=f"{SCHOOL_NAME.replace(' ', '_')}_Bank_Statement_{date.today().isoformat()}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True,
-    )
+    dl_col1, dl_col2 = st.columns(2)
+    with dl_col1:
+        st.download_button(
+            "Download as Excel",
+            data=bank_statement_to_excel(df_stmt, opening_amount, closing_balance, statement_start),
+            file_name=f"{SCHOOL_NAME.replace(' ', '_')}_Bank_Statement_{date.today().isoformat()}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+        )
+    with dl_col2:
+        st.download_button(
+            "Download as PDF",
+            data=bank_statement_to_pdf(df_stmt, opening_amount, closing_balance, statement_start),
+            file_name=f"{SCHOOL_NAME.replace(' ', '_')}_Bank_Statement_{date.today().isoformat()}.pdf",
+            mime="application/pdf",
+            use_container_width=True,
+        )
 
 
 def admin_income_statement_page():
