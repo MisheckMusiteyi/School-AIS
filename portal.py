@@ -646,8 +646,9 @@ def inject_css():
         [data-baseweb="calendar"] {{
             background-color: {WHITE} !important;
         }}
-        [data-baseweb="calendar"] * {{
+        [data-baseweb="calendar"] *, [data-baseweb="calendar"] *::before, [data-baseweb="calendar"] *::after {{
             color: {TEXT_DARK} !important;
+            opacity: 1 !important;
         }}
         [data-baseweb="calendar"] div {{
             background-color: {WHITE} !important;
@@ -1298,8 +1299,8 @@ def df_to_excel_download(df, sheet_label):
 # Opening Balance's date are excluded from the ledger, on the
 # assumption they're already folded into that opening figure.
 BANK_NAME = "NMB Bank Limited"
-BANK_ACCOUNT_NUMBER = "Update BANK_ACCOUNT_NUMBER in the code"
-BANK_ACCOUNT_TYPE = "Update BANK_ACCOUNT_TYPE in the code"
+BANK_ACCOUNT_NUMBER = "59950371005284"
+BANK_ACCOUNT_TYPE = "Business Current Account"
 
 
 def get_opening_balance():
