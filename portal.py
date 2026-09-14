@@ -624,15 +624,23 @@ def inject_css():
         
         /* --- Date input box + its calendar popover ---
            BaseWeb's Datepicker draws its own colors and ignores the page's
-           color-scheme, so it needs to be targeted explicitly. */
+           color-scheme, so every layer of its wrapper needs to be forced
+           white explicitly — different Streamlit versions nest this
+           slightly differently, so every plausible selector is covered. */
         
+        [data-testid^="stDateInput"],
+        [data-testid^="stDateInput"] > div,
+        [data-testid^="stDateInput"] div,
         [data-testid="stDateInput"] [data-baseweb="base-input"],
         [data-testid="stDateInput"] [data-baseweb="input"] {{
             background-color: {WHITE} !important;
         }}
-        [data-testid="stDateInput"] input {{
+        [data-testid^="stDateInput"] input {{
             background-color: {WHITE} !important;
             color: {TEXT_DARK} !important;
+        }}
+        [data-testid^="stDateInput"] svg {{
+            fill: {TEXT_DARK} !important;
         }}
         
         [data-baseweb="calendar"] {{
@@ -643,6 +651,24 @@ def inject_css():
         }}
         [data-baseweb="calendar"] div {{
             background-color: {WHITE} !important;
+        }}
+        
+        /* --- Text / number / textarea inputs, same treatment as date
+           inputs above, so nothing renders with a stray dark background
+           regardless of which Streamlit internals happen to apply. --- */
+        [data-testid^="stTextInput"],
+        [data-testid^="stTextInput"] div,
+        [data-testid^="stNumberInput"],
+        [data-testid^="stNumberInput"] div,
+        [data-testid^="stTextArea"],
+        [data-testid^="stTextArea"] div {{
+            background-color: {WHITE} !important;
+        }}
+        [data-testid^="stTextInput"] input,
+        [data-testid^="stNumberInput"] input,
+        [data-testid^="stTextArea"] textarea {{
+            background-color: {WHITE} !important;
+            color: {TEXT_DARK} !important;
         }}
         [data-baseweb="calendar"] button {{
             background-color: {WHITE} !important;
@@ -2137,25 +2163,6 @@ def admin_equity_register():
 
 def admin_bank_statement_page():
     st.markdown("## Bank Statement")
-
-    with st.expander("Set / update opening balance"):
-        current_amount, current_date = get_opening_balance()
-        if current_date:
-            st.caption(f"Currently set: ${current_amount:,.2f} as at {current_date.strftime('%d %B %Y')}")
-        else:
-            st.caption("Not set yet — the ledger below will start from $0.00 until you set one.")
-        col1, col2 = st.columns(2)
-        with col1:
-            ob_date = st.date_input("Opening Balance Date", value=current_date or date.today(), key="ob_date")
-        with col2:
-            ob_amount = st.number_input("Opening Balance Amount ($)", value=float(current_amount), step=10.0, key="ob_amount")
-        if st.button("Save Opening Balance", use_container_width=True):
-            success = write_data("Opening Balance", {"Date": str(ob_date), "Amount": ob_amount})
-            if success:
-                st.success("Opening balance saved.")
-                st.rerun()
-            else:
-                st.error("Failed to save — check the 'Opening Balance' tab exists with the right headers.")
 
     col1, col2, col3 = st.columns([1, 1, 1])
     with col1:
