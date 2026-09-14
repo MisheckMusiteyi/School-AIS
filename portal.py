@@ -24,7 +24,12 @@ SCHOOL_NAME = "School AIS"
 SCHOOL_LOGO_URL = "https://raw.githubusercontent.com/MisheckMusiteyi/Zebra-Academy-Portal/main/Zebra%20Academy.jpg"
 # NOTE: SHEET_NAME must match the exact filename of your Google Sheet
 # document. If you ever rename the Sheet itself, update this to match.
+# NOTE: SHEET_NAME is just for display/reference — the app actually opens
+# the spreadsheet by its ID (below), not by searching for its name. The
+# ID is the long string in the middle of the Sheet's URL:
+# https://docs.google.com/spreadsheets/d/THIS_PART_HERE/edit
 SHEET_NAME = "School AIS"
+SPREADSHEET_ID = "11rQPWhtGymnAjJ_xmFsHVsX1mdlli6AnSouSj5JQL3w"
 
 # Colors (from logo)
 MAROON = "#6B1F32"
@@ -710,7 +715,7 @@ def load_data(sheet_name):
     client = connect_to_sheets()
     for attempt in range(3):
         try:
-            sheet = client.open(SHEET_NAME).worksheet(sheet_name)
+            sheet = client.open_by_key(SPREADSHEET_ID).worksheet(sheet_name)
             df = pd.DataFrame(sheet.get_all_records())
             df.columns = df.columns.astype(str).str.strip()
             return df
@@ -739,7 +744,7 @@ def write_data(sheet_name, data_dict):
     client = connect_to_sheets()
     for attempt in range(3):
         try:
-            sheet = client.open(SHEET_NAME).worksheet(sheet_name)
+            sheet = client.open_by_key(SPREADSHEET_ID).worksheet(sheet_name)
             headers = [h.strip() for h in sheet.row_values(1)]
             if not headers:
                 st.error(f"'{sheet_name}' has no header row — cannot map columns.")
@@ -760,7 +765,7 @@ def write_data(sheet_name, data_dict):
 def update_cell(sheet_name, row, col, value):
     client = connect_to_sheets()
     try:
-        sheet = client.open(SHEET_NAME).worksheet(sheet_name)
+        sheet = client.open_by_key(SPREADSHEET_ID).worksheet(sheet_name)
         sheet.update_cell(row, col, value)
         return True
     except Exception as e:
@@ -918,7 +923,7 @@ def overwrite_sheet(sheet_name, df):
     unlike the append-only transaction logs elsewhere in this app)."""
     client = connect_to_sheets()
     try:
-        sheet = client.open(SHEET_NAME).worksheet(sheet_name)
+        sheet = client.open_by_key(SPREADSHEET_ID).worksheet(sheet_name)
         sheet.clear()
         values = [df.columns.tolist()] + df.astype(str).values.tolist()
         sheet.update(values)
